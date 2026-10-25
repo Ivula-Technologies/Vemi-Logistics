@@ -37,3 +37,18 @@ export async function withdrawBid(formData: FormData) {
   revalidatePath(`/board/${loadId}`);
   redirect(`/board/${loadId}`);
 }
+
+/** Uber Freight "Book now": take an instant-book load at the shipper's price. The first verified truck wins. */
+export async function instantBook(formData: FormData) {
+  const { carrier } = await requireRole("carrier");
+  const loadId = String(formData.get("loadId"));
+  const supabase = await createClient();
+  const { data: tripId, error } = await supabase.rpc("instant_book", { p_load: loadId });
+  if (error || !tripId) redirect(`/board/${loadId}?error=${encodeURIComponent(error?.message ?? "Could not book this load.")}`);
+  after(async () => {
+    const { data: trip } = await createAdminClient().from("trips").select("ref, shipper_id, price").eq("id", tripId).single();
+    if (trip) await notifyUser(trip.shipper_id, `Truck booked: ${trip.ref}`, `${carrier?.business_name ?? "A verified carrier"} booked your load at ${formatKes(trip.price)}. Pay now so they can dispatch the truck.`, `/trips/${tripId}`, { sms: true, key: `instant-${tripId}` });
+  });
+  revalidatePath("/board");
+  redirect(`/trips/${tripId}?booked=instant`);
+}

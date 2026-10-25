@@ -42,8 +42,8 @@ describe("csv", () => {
 
 describe("trip steps", () => {
   it("only offers the border step on cross-border trips", () => {
-    expect(nextSteps("in_transit", false).map((s) => s.status)).toEqual(["delivered"]);
-    expect(nextSteps("in_transit", true).map((s) => s.status)).toEqual(["at_border", "delivered"]);
+    expect(nextSteps("in_transit", false).map((s) => s.status)).toEqual(["at_dropoff", "delivered"]);
+    expect(nextSteps("in_transit", true).map((s) => s.status)).toEqual(["at_border", "at_dropoff", "delivered"]);
     expect(nextSteps("awaiting_payment", true)).toEqual([]);
     expect(progressIndex("at_border")).toBe(progressIndex("in_transit"));
   });

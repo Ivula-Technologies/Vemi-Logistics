@@ -4,10 +4,13 @@ import { signedUrl } from "@/lib/storage";
 
 /**
  * Opens a private file after checking, through the viewer's own session, that they may see it:
- *   /api/files/doc/<document id>  carrier documents (the carrier and admins)
- *   /api/files/pod/<trip id>      proof of delivery (the trip's shipper, carrier and admins)
+ *   /api/files/doc/<document id>         carrier documents (the carrier and admins)
+ *   /api/files/pod/<trip id>             proof of delivery (the trip's shipper, carrier and admins)
+ *   /api/files/dispute/<trip id>?i=0     damage photos on a dispute (the same people)
+ *   /api/files/truck/<truck id>          truck photo (the carrier, admins, and shippers of its trips)
+ *   /api/files/driver/<driver id>        driver photo (the carrier, admins, and shippers of live trips)
  */
-export async function GET(_: Request, { params }: { params: Promise<{ bucket: string; id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ bucket: string; id: string }> }) {
   const { bucket, id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,6 +22,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ bucket: st
   } else if (bucket === "pod") {
     const { data } = await supabase.from("trips").select("pod_path").eq("id", id).maybeSingle();
     if (data?.pod_path) url = await signedUrl("pod", data.pod_path);
+  } else if (bucket === "dispute") {
+    const index = Number.parseInt(new URL(request.url).searchParams.get("i") ?? "0", 10);
+    const { data } = await supabase.from("trips").select("dispute_files").eq("id", id).maybeSingle();
+    const path = data?.dispute_files?.[index];
+    if (path) url = await signedUrl("pod", path);
+  } else if (bucket === "truck" || bucket === "driver") {
+    const { data } = await supabase.from(bucket === "truck" ? "trucks" : "drivers").select("photo_path").eq("id", id).maybeSingle();
+    if (data?.photo_path) url = await signedUrl("photos", data.photo_path);
   }
   if (!url) return NextResponse.json({ error: "File not found." }, { status: 404 });
   return NextResponse.redirect(url);

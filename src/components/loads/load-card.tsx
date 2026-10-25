@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CalendarDays, Package, Truck } from "lucide-react";
+import { ArrowRight, CalendarDays, MapPinned, Package, ShieldCheck, Truck, Zap } from "lucide-react";
 import { LoadStatusBadge } from "@/components/app/status-badge";
 import { TRUCK_TYPES } from "@/lib/pricing";
 import { formatDate, formatKes } from "@/lib/utils";
@@ -23,6 +23,11 @@ export function LoadCard({ load, places, href, extra, showStatus = true }: { loa
       <span className="inline-flex items-center gap-1.5"><Truck className="h-4 w-4" />{TRUCK_TYPES[load.truck_type]?.short ?? load.truck_type}</span>
       <span className="inline-flex min-w-0 items-center gap-1.5"><Package className="h-4 w-4 shrink-0" /><span className="truncate">{Number(load.weight_tonnes)} t · {load.cargo_description}</span></span>
     </div>
+    {load.instant_book || load.stop_count || load.insure ? <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-medium">
+      {load.instant_book && load.status === "open" ? <span className="inline-flex items-center gap-1 rounded-full bg-signal-soft px-2 py-0.5 text-primary"><Zap className="h-3 w-3" />Book now</span> : null}
+      {load.stop_count ? <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5"><MapPinned className="h-3 w-3" />{load.stop_count} extra stop{load.stop_count > 1 ? "s" : ""}</span> : null}
+      {load.insure ? <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5"><ShieldCheck className="h-3 w-3" />Cargo cover</span> : null}
+    </div> : null}
     {extra ? <div className="mt-3">{extra}</div> : null}
   </Link>;
 }

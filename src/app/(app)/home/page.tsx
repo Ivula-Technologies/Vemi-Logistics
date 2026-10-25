@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AlertTriangle, CheckCircle2, PackagePlus, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHeader, EmptyState } from "@/components/app/page-header";
+import { Flash, PageHeader, EmptyState } from "@/components/app/page-header";
 import { TripCard } from "@/components/trips/trip-card";
 import { LoadCard } from "@/components/loads/load-card";
 import { InstallAppButton } from "@/components/pwa/install-app";
@@ -16,15 +16,16 @@ import type { Load, Trip } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Home" };
 
-export default async function HomePage() {
-  const { user, profile, carrier } = await getSession();
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ joined?: string }> }) {
+  const [{ user, profile, carrier, accountId }, query] = await Promise.all([getSession(), searchParams]);
+  if (!profile.onboarded && profile.role !== "admin") redirect("/welcome");
   if (profile.role === "admin") redirect("/admin");
   const supabase = await createClient();
   const places = await placeMap();
   const firstName = profile.full_name.split(" ")[0] || "there";
 
   const { data: activeTrips } = await supabase.from("trips").select(`${TRIP_COLUMNS}, loads(origin_id, destination_id, pickup_date, cargo_description)`)
-    .eq(profile.role === "carrier" ? "carrier_id" : "shipper_id", user.id).not("status", "in", "(completed,cancelled)").order("created_at", { ascending: false }).limit(10);
+    .eq(profile.role === "carrier" ? "carrier_id" : "shipper_id", profile.role === "carrier" ? user.id : accountId).not("status", "in", "(completed,cancelled)").order("created_at", { ascending: false }).limit(10);
   const trips = (activeTrips ?? []) as unknown as (Trip & { loads: Pick<Load, "origin_id" | "destination_id" | "pickup_date" | "cargo_description"> })[];
 
   if (profile.role === "carrier") {
@@ -65,15 +66,18 @@ export default async function HomePage() {
     </div>;
   }
 
-  const { data: loads } = await supabase.from("loads").select("*").eq("shipper_id", user.id).eq("status", "open").order("created_at", { ascending: false }).limit(5);
+  const { data: loads } = await supabase.from("loads").select("*").eq("shipper_id", accountId).eq("status", "open").order("created_at", { ascending: false }).limit(5);
   const { data: bidCounts } = await supabase.from("bids").select("load_id").in("load_id", (loads ?? []).map((l) => l.id)).eq("status", "pending");
   const counts = new Map<string, number>();
   for (const b of bidCounts ?? []) counts.set(b.load_id, (counts.get(b.load_id) ?? 0) + 1);
   const unpaid = trips.filter((t) => t.status === "awaiting_payment");
   const toConfirm = trips.filter((t) => t.status === "delivered");
+  const { data: wallet } = await supabase.rpc("wallet_balance");
   return <div className="space-y-8">
+    {query.joined ? <Flash saved="joined" savedText={{ joined: "You've joined the team. Loads and trips you book now go on the business account." }} /> : null}
     <PageHeader title={`Habari, ${firstName}`} description="Move goods with verified trucks across East Africa." actions={<Button asChild><Link href="/loads/new"><PackagePlus className="mr-2 h-4 w-4" />Post a load</Link></Button>} />
-    {[...unpaid, ...toConfirm].map((t) => <Link key={t.id} href={`/trips/${t.id}`} className="flex items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm"><AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" /><span><strong>{t.ref}</strong>: {t.status === "awaiting_payment" ? `pay ${formatKes(t.price - t.amount_paid)} so the truck can be dispatched.` : "the driver says it's delivered. Confirm or tell us what's wrong."}</span></Link>)}
+    {[...unpaid, ...toConfirm].map((t) => <Link key={t.id} href={`/trips/${t.id}`} className="flex items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm"><AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" /><span><strong>{t.ref}</strong>: {t.status === "awaiting_payment" ? `pay ${formatKes(t.balance)} so the truck can be dispatched.` : "the driver says it's delivered. Confirm or tell us what's wrong."}</span></Link>)}
+    {(wallet as number | null) ? <Link href="/wallet" className="flex items-center justify-between rounded-lg border bg-card p-4 text-sm hover:border-primary/50"><span>Vemi wallet credit, ready to use on your next trip</span><strong>{formatKes(wallet as number)}</strong></Link> : null}
     <section><h2 className="mb-3 font-semibold">Trips in progress</h2>{trips.length ? <div className="space-y-3">{trips.map((t) => <TripCard key={t.id} trip={t} places={places} viewer="shipper" />)}</div> : <EmptyState icon={<PackagePlus className="h-5 w-5" />} title="Nothing on the road yet" description="Post a load. Verified trucks bid within hours, and you pick the one you want." action={<Button asChild><Link href="/loads/new">Post your first load</Link></Button>} />}</section>
     {(loads ?? []).length ? <section><div className="mb-3 flex items-center justify-between"><h2 className="font-semibold">Open loads</h2><Link href="/loads" className="text-sm font-semibold text-primary">All loads</Link></div><div className="space-y-3">{(loads as Load[]).map((l) => <LoadCard key={l.id} load={l} places={places} href={`/loads/${l.id}`} extra={<p className="text-sm font-medium text-primary">{counts.get(l.id) ? `${counts.get(l.id)} bid${counts.get(l.id)! > 1 ? "s" : ""} waiting` : "Waiting for bids"}</p>} />)}</div></section> : null}
     <InstallAppButton label="Install the Vemi app on this phone" />

@@ -1,9 +1,10 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendPush } from "@/lib/push";
 
 /**
- * Email (Resend) and SMS (Africa's Talking) for marketplace events. Every function here is
- * best-effort: a missing setting or a provider error is logged and never breaks the action.
+ * Push (installed app), email (Resend) and SMS (Africa's Talking) for marketplace events. Every
+ * function here is best-effort: a missing setting or a provider error is logged and never breaks the action.
  */
 
 function site() {
@@ -79,8 +80,13 @@ async function contact(userId: string) {
   }
 }
 
-/** Tell one user something happened, by email and (for urgent things) SMS. */
-export async function notifyUser(userId: string, subject: string, message: string, path: string, options: { sms?: boolean; key?: string } = {}) {
+/**
+ * Tell one user something happened: a push to their installed app, an email, and (for urgent things) SMS.
+ * pushOnly is for chatty events like chat messages, where an email each time would be too much.
+ */
+export async function notifyUser(userId: string, subject: string, message: string, path: string, options: { sms?: boolean; key?: string; pushOnly?: boolean } = {}) {
+  const pushed = await sendPush(userId, subject, message, path, options.key);
+  if (options.pushOnly && pushed) return;
   const person = await contact(userId);
   if (!person) return;
   await Promise.all([
@@ -89,8 +95,11 @@ export async function notifyUser(userId: string, subject: string, message: strin
   ]);
 }
 
-/** Emails every admin, for things the ops desk must act on (new carrier, dispute, bank transfer). */
-export async function notifyOps(subject: string, message: string, path: string) {
+/** Emails the ops desk, for things it must act on (new carrier, dispute, bank transfer). urgent also texts the ops phone. */
+export async function notifyOps(subject: string, message: string, path: string, options: { urgent?: boolean } = {}) {
   const to = process.env.VEMI_OPS_EMAIL;
-  if (to) await sendEmail(to, subject, message, path);
+  await Promise.all([
+    to ? sendEmail(to, subject, message, path) : Promise.resolve(false),
+    options.urgent && process.env.VEMI_OPS_PHONE ? sendSms(process.env.VEMI_OPS_PHONE, `VEMI OPS: ${subject}. ${message} ${site()}${path}`) : Promise.resolve(false),
+  ]);
 }

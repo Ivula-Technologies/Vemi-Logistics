@@ -3,6 +3,7 @@ import { after, NextResponse } from "next/server";
 import { callbackItem, type StkCallback } from "@/lib/mpesa";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notify";
+import { sendReceipt } from "@/lib/trip-notify";
 
 /** Safaricom retries a callback that does not get this exact acknowledgement. */
 const ACK = { ResultCode: 0, ResultDesc: "Accepted" };
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
     const { data: trip, error } = await admin.rpc("apply_mpesa_payment", { p_checkout_request_id: callback.CheckoutRequestID, p_receipt: receipt ? String(receipt) : null, p_amount: payment.amount, p_raw: body });
     if (error) throw error;
     const paidTrip = trip as { id: string; ref: string; status: string; carrier_id: string } | null;
+    if (paidTrip) after(() => sendReceipt(paidTrip.id, payment.amount, "M-Pesa", String(callback.CheckoutRequestID)));
     if (paidTrip?.status === "scheduled") {
       after(() => notifyUser(paidTrip.carrier_id, `${paidTrip.ref} is paid`, "The shipper paid by M-Pesa. Dispatch the truck: your driver can start from their trip link.", `/trips/${paidTrip.id}`, { sms: true, key: `paid-${paidTrip.id}` }));
     }

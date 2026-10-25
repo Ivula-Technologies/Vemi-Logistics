@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { carrierSchema, documentKindSchema, driverSchema, truckSchema } from "@/lib/validations";
 import { fieldErrors } from "@/lib/forms";
-import { removePrivateFile, storePrivateFile, uploadProblem } from "@/lib/storage";
+import { photoProblem, removePrivateFile, storePrivateFile, uploadProblem } from "@/lib/storage";
 import { notifyOps } from "@/lib/notify";
 import type { ActionState } from "@/lib/types";
 
@@ -54,7 +54,8 @@ export async function addDriver(_: ActionState, formData: FormData): Promise<Act
   const parsed = driverSchema.safeParse({ fullName: formData.get("fullName"), phone: formData.get("phone"), licenceNo: formData.get("licenceNo") ?? "" });
   if (!parsed.success) return { status: "error", message: "Check the highlighted details.", fieldErrors: fieldErrors(parsed.error) };
   const supabase = await createClient();
-  const { error } = await supabase.from("drivers").insert({ carrier_id: user.id, full_name: parsed.data.fullName, phone: parsed.data.phone, licence_no: parsed.data.licenceNo });
+  const language = formData.get("language") === "en" ? "en" : "sw";
+  const { error } = await supabase.from("drivers").insert({ carrier_id: user.id, full_name: parsed.data.fullName, phone: parsed.data.phone, licence_no: parsed.data.licenceNo, language });
   if (error) return { status: "error", message: error.message };
   revalidatePath("/fleet");
   return { status: "success", message: "Driver added." };
@@ -77,8 +78,12 @@ export async function uploadDocument(formData: FormData) {
   if (problem) redirect("/profile?error=" + encodeURIComponent(problem) + "#documents");
   const path = await storePrivateFile("carrier-docs", user.id, file!);
   const expires = String(formData.get("expiresOn") ?? "");
+  const admin = createAdminClient();
+  // A driving licence or good-conduct certificate can belong to one driver.
+  const driverId = String(formData.get("driverId") ?? "");
+  const { data: driver } = driverId ? await admin.from("drivers").select("id").eq("id", driverId).eq("carrier_id", user.id).maybeSingle() : { data: null };
   // Inserts go through the service key: storage paths are only ever written by the server.
-  const { error } = await createAdminClient().from("carrier_documents").insert({ carrier_id: user.id, kind: kind.data, path, file_name: file!.name.slice(0, 120), expires_on: /^\d{4}-\d{2}-\d{2}$/.test(expires) ? expires : null });
+  const { error } = await admin.from("carrier_documents").insert({ carrier_id: user.id, kind: kind.data, path, file_name: file!.name.slice(0, 120), expires_on: /^\d{4}-\d{2}-\d{2}$/.test(expires) ? expires : null, driver_id: driver?.id ?? null });
   if (error) { await removePrivateFile("carrier-docs", path); redirect("/profile?error=" + encodeURIComponent(error.message) + "#documents"); }
   revalidatePath("/profile");
   redirect("/profile?saved=document#documents");
@@ -91,4 +96,59 @@ export async function deleteDocument(formData: FormData) {
   if (data?.path) await removePrivateFile("carrier-docs", data.path);
   revalidatePath("/profile");
   redirect("/profile#documents");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Trucks online, photos and driver language
+// ---------------------------------------------------------------------------------------------
+
+/** "Go online": the truck is free at a town from a date, optionally heading somewhere. New loads nearby are texted first. */
+export async function setTruckAvailable(formData: FormData) {
+  await requireRole("carrier");
+  const lat = Number.parseFloat(String(formData.get("lat") ?? ""));
+  const lng = Number.parseFloat(String(formData.get("lng") ?? ""));
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_truck_available", {
+    p_truck: String(formData.get("truckId")), p_place: String(formData.get("placeId") ?? ""), p_from: String(formData.get("from") ?? "") || null,
+    p_heading: String(formData.get("heading") ?? "") || null, p_note: String(formData.get("note") ?? "") || null,
+    p_lat: Number.isFinite(lat) ? lat : null, p_lng: Number.isFinite(lng) ? lng : null,
+  });
+  if (error) redirect("/fleet?error=" + encodeURIComponent(error.message));
+  revalidatePath("/fleet");
+  redirect("/fleet?saved=online");
+}
+
+export async function clearTruckAvailable(formData: FormData) {
+  await requireRole("carrier");
+  const supabase = await createClient();
+  await supabase.rpc("clear_truck_available", { p_truck: String(formData.get("truckId")) });
+  revalidatePath("/fleet");
+  redirect("/fleet?saved=offline");
+}
+
+/** Truck and driver photos are shown to the shipper once the trip is paid, like Uber's car and driver photo. */
+export async function uploadFleetPhoto(formData: FormData) {
+  const { user } = await requireRole("carrier");
+  const kind = formData.get("kind") === "driver" ? "drivers" : "trucks";
+  const id = String(formData.get("id"));
+  const file = formData.get("file") as File | null;
+  const problem = photoProblem(file);
+  if (problem) redirect("/fleet?error=" + encodeURIComponent(problem));
+  const admin = createAdminClient();
+  const { data: row } = await admin.from(kind).select("id, photo_path").eq("id", id).eq("carrier_id", user.id).maybeSingle();
+  if (!row) redirect("/fleet?error=" + encodeURIComponent("Not found."));
+  const path = await storePrivateFile("photos", `${user.id}/${kind}`, file!);
+  const { error } = await admin.from(kind).update({ photo_path: path }).eq("id", id);
+  if (error) { await removePrivateFile("photos", path); redirect("/fleet?error=" + encodeURIComponent(error.message)); }
+  if (row.photo_path) await removePrivateFile("photos", row.photo_path);
+  revalidatePath("/fleet");
+  redirect("/fleet?saved=photo");
+}
+
+export async function setDriverLanguage(formData: FormData) {
+  await requireRole("carrier");
+  const supabase = await createClient();
+  await supabase.from("drivers").update({ language: formData.get("language") === "en" ? "en" : "sw" }).eq("id", String(formData.get("id")));
+  revalidatePath("/fleet");
+  redirect("/fleet?saved=language");
 }

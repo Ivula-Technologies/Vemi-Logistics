@@ -13,10 +13,10 @@ export const metadata: Metadata = { title: "Trips" };
 type Row = Trip & { loads: Pick<Load, "origin_id" | "destination_id" | "pickup_date" | "cargo_description"> | null };
 
 export default async function TripsPage() {
-  const { user, profile } = await getSession();
+  const { user, profile, accountId } = await getSession();
   const supabase = await createClient();
   let request = supabase.from("trips").select(`${TRIP_COLUMNS}, loads(origin_id, destination_id, pickup_date, cargo_description)`).order("created_at", { ascending: false }).limit(200);
-  if (profile.role !== "admin") request = request.eq(profile.role === "carrier" ? "carrier_id" : "shipper_id", user.id);
+  if (profile.role !== "admin") request = request.eq(profile.role === "carrier" ? "carrier_id" : "shipper_id", profile.role === "carrier" ? user.id : accountId);
   const [{ data }, places] = await Promise.all([request, placeMap()]);
   const trips = (data ?? []) as unknown as Row[];
   const active = trips.filter((t) => !["completed", "cancelled"].includes(t.status));

@@ -12,10 +12,10 @@ import type { Load } from "@/lib/types";
 export const metadata: Metadata = { title: "My loads" };
 
 export default async function LoadsPage() {
-  const { user } = await requireRole("shipper", "admin");
+  const { accountId } = await requireRole("shipper", "admin");
   const supabase = await createClient();
   const [{ data }, places] = await Promise.all([
-    supabase.from("loads").select("*").eq("shipper_id", user.id).order("created_at", { ascending: false }).limit(100),
+    supabase.from("loads").select("*").eq("shipper_id", accountId).order("created_at", { ascending: false }).limit(100),
     placeMap(),
   ]);
   const loads = (data ?? []) as Load[];

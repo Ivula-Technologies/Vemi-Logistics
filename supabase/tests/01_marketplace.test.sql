@@ -18,7 +18,7 @@ select tests.check(not exists (
     and not exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%')
 ), 'every security definer function pins its search path');
 select tests.check(not has_function_privilege('authenticated', 'public.apply_mpesa_payment(text, text, integer, jsonb)', 'execute'), 'users cannot fake a payment');
-select tests.check(not has_function_privilege('authenticated', 'public.driver_update_trip(text, text, text, double precision, double precision)', 'execute'), 'driver link functions are server-only');
+select tests.check(not has_function_privilege('authenticated', 'public.driver_update_trip(text, text, text, double precision, double precision, text)', 'execute'), 'driver link functions are server-only');
 
 -- People. Sign-up can choose shipper or carrier, never admin.
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -151,7 +151,12 @@ select tests.expect_error(format('select public.driver_update_trip(%L, ''deliver
 select tests.expect_error('select public.driver_update_trip(''wrong-token'', ''to_pickup'')', 'not valid');
 select public.driver_update_trip(tests.get('token'), 'to_pickup', null, -4.05, 39.66);
 select tests.check(public.driver_ping(tests.get('token'), -4.04, 39.67) = false, 'pings are throttled to one a minute');
-select public.driver_update_trip(tests.get('token'), 'loaded');
+select tests.check(public.driver_update_trip(tests.get('token'), 'loaded') ->> 'ok' = 'false', 'loading needs the pickup code');
+select tests.check(public.driver_update_trip(tests.get('token'), 'loaded', null, null, null, '99999') ->> 'ok' = 'false', 'a wrong pickup code is refused');
+reset role;
+select tests.set('pickup_code', (select pickup_code from public.trips where id = tests.id('trip')));
+select tests.act_as_service();
+select tests.check(public.driver_update_trip(tests.get('token'), 'loaded', null, null, null, tests.get('pickup_code')) ->> 'ok' = 'true', 'the right pickup code starts loading');
 select public.driver_update_trip(tests.get('token'), 'in_transit');
 select public.driver_update_trip(tests.get('token'), 'at_border', 'At Malaba');
 select public.driver_update_trip(tests.get('token'), 'in_transit');
@@ -200,16 +205,18 @@ select tests.act_as('admin');
 select public.admin_record_bank_payment(tests.id('trip2'), 30000, 'EQ-778');
 select public.admin_record_bank_payment(tests.id('trip3'), 47000, 'EQ-779');
 reset role;
-update public.trips set truck_id = (select id from public.trucks where plate = 'KCC 456B'), driver_id = (select id from public.drivers where full_name = 'Ali') where id in (tests.id('trip2'), tests.id('trip3'));
+update public.trips set truck_id = (select id from public.trucks where plate = 'KCC 456B'), driver_id = (select id from public.drivers where full_name = 'Ali'), pickup_code = '1111', delivery_code = '2222' where id in (tests.id('trip2'), tests.id('trip3'));
 select tests.act_as('carrier2');
 select public.carrier_update_trip(tests.id('trip2'), 'to_pickup');
-select public.carrier_update_trip(tests.id('trip2'), 'loaded');
+select public.carrier_update_trip(tests.id('trip2'), 'loaded', null, null, null, '1111');
 select public.carrier_update_trip(tests.id('trip2'), 'in_transit');
-select public.carrier_update_trip(tests.id('trip2'), 'delivered');
+select tests.check(public.carrier_update_trip(tests.id('trip2'), 'delivered') ->> 'ok' = 'false', 'delivery needs the code or a photo');
+select public.carrier_update_trip(tests.id('trip2'), 'delivered', null, null, null, '2222');
 select public.carrier_update_trip(tests.id('trip3'), 'to_pickup');
-select public.carrier_update_trip(tests.id('trip3'), 'loaded');
+select public.carrier_update_trip(tests.id('trip3'), 'loaded', null, null, null, '1111');
 select public.carrier_update_trip(tests.id('trip3'), 'in_transit');
-select public.carrier_update_trip(tests.id('trip3'), 'delivered');
+select public.carrier_update_trip(tests.id('trip3'), 'delivered', null, null, null, '2222');
+select tests.check((select status from public.trips where id = tests.id('trip3')) = 'delivered', 'delivered with the code');
 select tests.act_as('shipper');
 select tests.expect_error(format('select public.raise_dispute(%L, ''bad'')', tests.get('trip2')), 'at least 10');
 select public.raise_dispute(tests.id('trip2'), 'Ten bags were missing at delivery');
@@ -220,7 +227,7 @@ reset role;
 update public.trips set delivered_at = now() - interval '3 days' where id in (tests.id('trip2'), tests.id('trip3'));
 update public.loads set pickup_date = current_date - 5 where cargo_description = 'Old load';
 select tests.act_as_service();
-select tests.check(public.run_daily_jobs() = '{"auto_confirmed": 1, "expired_loads": 1}'::jsonb, 'daily jobs: one auto-confirm (not the disputed trip), one expired load');
+select tests.check((select r ->> 'auto_confirmed' = '1' and r ->> 'expired_loads' = '1' from (select public.run_daily_jobs() as r) x), 'daily jobs: one auto-confirm (not the disputed trip), one expired load');
 reset role;
 select tests.check((select status from public.trips where id = tests.id('trip2')) = 'disputed', 'disputed trip is not auto-confirmed');
 select tests.act_as('admin');

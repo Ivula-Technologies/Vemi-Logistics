@@ -36,6 +36,7 @@ export function DriverForm() {
     <Field label="Driver's name" htmlFor="fullName" error={e.fullName}><Input id="fullName" name="fullName" required /></Field>
     <Field label="Mobile number" htmlFor="dphone" error={e.phone}><Input id="dphone" name="phone" type="tel" placeholder="0712 345 678" required /></Field>
     <Field label="Licence number (optional)" htmlFor="licenceNo" error={e.licenceNo}><Input id="licenceNo" name="licenceNo" /></Field>
+    <Field label="Driver's language" htmlFor="language" hint="Their trip page and texts use it."><select id="language" name="language" className={selectClass} defaultValue="sw"><option value="sw">Kiswahili</option><option value="en">English</option></select></Field>
     <div className="space-y-2 sm:col-span-3"><FormMessage state={state} /><SubmitButton pendingLabel="Adding…">Add driver</SubmitButton></div>
   </form>;
 }

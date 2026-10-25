@@ -18,12 +18,13 @@ export function TripCard({ trip, places, viewer }: { trip: Trip & { loads: Pick<
         <RouteLine from={places.get(trip.loads?.origin_id ?? "")} to={places.get(trip.loads?.destination_id ?? "")} />
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{trip.ref} · {trip.loads?.cargo_description}</p>
       </div>
-      <p className="shrink-0 font-bold">{formatKes(viewer === "carrier" ? trip.carrier_payout : trip.price)}</p>
+      <p className="shrink-0 font-bold">{formatKes(viewer === "carrier" ? trip.carrier_payout + trip.extras - trip.extras_commission : trip.total_due)}</p>
     </div>
     <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
       <TripStatusBadge status={trip.status} />
       <span className="inline-flex items-center gap-1.5 text-muted-foreground"><CalendarDays className="h-4 w-4" />{formatDate(trip.loads?.pickup_date)}</span>
       {next ? <span className="font-semibold text-primary">{next} →</span> : null}
+      {trip.sos_at ? <span className="font-semibold text-destructive">SOS</span> : trip.alert ? <span className="font-semibold text-amber-700 dark:text-amber-400">Check on the truck</span> : null}
     </div>
   </Link>;
 }

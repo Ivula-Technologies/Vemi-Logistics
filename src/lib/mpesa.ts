@@ -1,4 +1,5 @@
 import "server-only";
+import { timingSafeEqual } from "node:crypto";
 
 /** Safaricom Daraja STK Push ("Lipa na M-Pesa Online"), the same integration as the other Ivula apps. */
 
@@ -104,4 +105,71 @@ export type StkCallback = {
 
 export function callbackItem(callback: StkCallback, name: string) {
   return callback.CallbackMetadata?.Item?.find((item) => item.Name === name)?.Value;
+}
+
+// ---------------------------------------------------------------------------------------------
+// B2C: Vemi pays carriers and wallet cash-outs straight to M-Pesa (needs a B2C shortcode from Safaricom).
+// ---------------------------------------------------------------------------------------------
+
+export function b2cConfigured() {
+  const env = process.env;
+  return Boolean(env.MPESA_B2C_SHORTCODE && env.MPESA_B2C_INITIATOR && env.MPESA_B2C_SECURITY_CREDENTIAL && (env.MPESA_B2C_CONSUMER_KEY || env.MPESA_CONSUMER_KEY) && env.MPESA_CALLBACK_SECRET);
+}
+
+let cachedB2cToken: { value: string; expiresAt: number } | null = null;
+
+async function b2cToken() {
+  if (cachedB2cToken && cachedB2cToken.expiresAt > Date.now()) return cachedB2cToken.value;
+  const key = process.env.MPESA_B2C_CONSUMER_KEY || process.env.MPESA_CONSUMER_KEY;
+  const secret = process.env.MPESA_B2C_CONSUMER_SECRET || process.env.MPESA_CONSUMER_SECRET;
+  const response = await fetch(`${baseUrl()}/oauth/v1/generate?grant_type=client_credentials`, {
+    headers: { Authorization: `Basic ${Buffer.from(`${key}:${secret}`).toString("base64")}` },
+    cache: "no-store",
+  });
+  const data = (await response.json().catch(() => null)) as { access_token?: string; expires_in?: string | number } | null;
+  if (!response.ok || !data?.access_token) throw new Error("Could not sign in to M-Pesa B2C.");
+  cachedB2cToken = { value: data.access_token, expiresAt: Date.now() + (Number(data.expires_in ?? 3599) - 60) * 1000 };
+  return data.access_token;
+}
+
+/** Sends money to a phone. conversationId is ours (OriginatorConversationID) and comes back in the result. */
+export async function b2cPay(options: { phone: string; amount: number; conversationId: string; remarks: string; resultUrl: string; timeoutUrl: string }) {
+  const response = await fetch(`${baseUrl()}/mpesa/b2c/v3/paymentrequest`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${await b2cToken()}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      OriginatorConversationID: options.conversationId,
+      InitiatorName: process.env.MPESA_B2C_INITIATOR,
+      SecurityCredential: process.env.MPESA_B2C_SECURITY_CREDENTIAL,
+      CommandID: "BusinessPayment",
+      Amount: options.amount,
+      PartyA: process.env.MPESA_B2C_SHORTCODE,
+      PartyB: options.phone,
+      Remarks: options.remarks.slice(0, 100),
+      QueueTimeOutURL: options.timeoutUrl,
+      ResultURL: options.resultUrl,
+      Occasion: "Vemi",
+    }),
+    cache: "no-store",
+  });
+  const data = (await response.json().catch(() => null)) as Record<string, string> | null;
+  if (!response.ok || data?.ResponseCode !== "0") throw new Error(data?.errorMessage ?? data?.ResponseDescription ?? "M-Pesa did not accept the payout.");
+  return data;
+}
+
+export type B2cResult = {
+  Result?: {
+    ResultCode?: number | string;
+    ResultDesc?: string;
+    OriginatorConversationID?: string;
+    TransactionID?: string;
+  };
+};
+
+/** Safaricom callbacks carry our secret in ?token= (Daraja has no signature). */
+export function callbackTokenMatches(token: string | null) {
+  const expected = process.env.MPESA_CALLBACK_SECRET;
+  if (!expected || !token) return false;
+  const a = Buffer.from(token); const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }

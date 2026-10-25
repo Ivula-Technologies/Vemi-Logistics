@@ -35,7 +35,7 @@ export function straightLineKm(a: Pick<Place, "lat" | "lng">, b: Pick<Place, "la
   return 6371 * 2 * Math.asin(Math.sqrt(h));
 }
 
-export function roadDistanceKm(a: Place, b: Place) {
+export function roadDistanceKm(a: Pick<Place, "lat" | "lng">, b: Pick<Place, "lat" | "lng">) {
   return Math.max(5, Math.round(straightLineKm(a, b) * ROAD_FACTOR));
 }
 
@@ -81,6 +81,37 @@ export function quote(origin: Place, destination: Place, truckType: TruckType) {
   const distanceKm = roadDistanceKm(origin, destination);
   const crossings = borderCrossings(origin.country, destination.country);
   return { distanceKm, crossings, price: guidePrice(distanceKm, truckType, crossings) };
+}
+
+/** A stop on the route: a town, optionally pinned to an exact spot. */
+export type RoutePoint = Place & { pin?: { lat: number; lng: number } | null };
+
+function at(point: RoutePoint) {
+  return point.pin ?? point;
+}
+
+/** Fee per extra stop, the same default as platform_settings.stop_fee_kes. */
+export const STOP_FEE_KES = 2000;
+
+/**
+ * Guide price for a route with optional stops on the way: distance through every point in order,
+ * every border crossed between them, and a fee for each extra stop.
+ */
+export function quoteRoute(points: RoutePoint[], truckType: TruckType, stopFee = STOP_FEE_KES) {
+  let distanceKm = 0;
+  let crossings = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    distanceKm += roadDistanceKm(at(points[i - 1]), at(points[i]));
+    crossings += borderCrossings(points[i - 1].country, points[i].country);
+  }
+  const stops = Math.max(0, points.length - 2);
+  return { distanceKm, crossings, stops, price: guidePrice(distanceKm, truckType, crossings) + stops * stopFee };
+}
+
+/** Adds a surcharge in basis points (1500 = 15%) and rounds to the nearest KES 500 again. */
+export function withSurcharge(price: number, bps: number) {
+  if (!bps) return price;
+  return Math.round((price * (10000 + bps)) / 10000 / 500) * 500;
 }
 
 /** The smallest truck type that carries this weight, for a sensible default on the load form. */

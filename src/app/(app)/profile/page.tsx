@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { InstallAppButton } from "@/components/pwa/install-app";
+import { PushToggle } from "@/components/pwa/push-toggle";
+import { ShareReferral } from "@/components/app/share-referral";
 import { deleteDocument, uploadDocument } from "@/app/actions/carrier";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DOCUMENT_KINDS, REQUIRED_DOCUMENTS } from "@/lib/trips";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatKes } from "@/lib/utils";
 import { percent } from "@/lib/commission";
-import type { CarrierPrivate } from "@/lib/types";
+import type { CarrierPrivate, PlatformSettings } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -28,6 +30,8 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
     supabase.from("carrier_private").select("*").eq("carrier_id", user.id).maybeSingle(),
     supabase.from("carrier_documents").select("id, kind, file_name, expires_on, created_at").eq("carrier_id", user.id).order("created_at"),
   ]) : [{ data: null }, { data: null }];
+  const { data: settingsRow } = await supabase.from("platform_settings").select("referral_reward_kes, referee_credit_kes").single();
+  const settings = settingsRow as Pick<PlatformSettings, "referral_reward_kes" | "referee_credit_kes"> | null;
   const have = new Set((docs ?? []).map((d) => d.kind));
   return <div className="max-w-3xl space-y-8">
     <Flash error={query.error} saved={query.saved} savedText={{ document: "Document uploaded." }} />
@@ -61,6 +65,16 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       <h2 className="mb-4 font-semibold">Your details</h2>
       <AccountForm profile={profile} />
     </section>
+    <section className="rounded-lg border bg-card p-5">
+      <h2 className="mb-1 font-semibold">Notifications</h2>
+      <p className="mb-3 text-sm text-muted-foreground">Get bids, bookings, payments, trip updates and messages on this phone, even when Vemi is closed. Important ones also come by SMS.</p>
+      <PushToggle publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
+    </section>
+    {profile.referral_code && profile.role !== "admin" ? <section id="refer" className="scroll-mt-20 rounded-lg border bg-card p-5">
+      <h2 className="mb-1 font-semibold">Invite and earn</h2>
+      <p className="mb-3 text-sm text-muted-foreground">{settings ? `Share your code. A business that signs up with it gets ${formatKes(settings.referee_credit_kes)} off its first trip, and you get ${formatKes(settings.referral_reward_kes)} ${isCarrier ? "with your next payout" : "in your Vemi wallet"} once their first trip is done. Truck owners can join with it too.` : "Share your code with businesses that move goods."}</p>
+      <ShareReferral code={profile.referral_code} url={`${(process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "")}/signup?ref=${profile.referral_code}`} />
+    </section> : null}
     <InstallAppButton label="Install the Vemi app on this phone" />
   </div>;
 }

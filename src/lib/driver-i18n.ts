@@ -1,0 +1,126 @@
+/** The driver page and driver texts in English and Kiswahili. The carrier picks a language per driver. */
+
+export type Lang = "en" | "sw";
+
+const en = {
+  driver: "Driver",
+  pickup: "Pickup",
+  dropoff: "Drop-off",
+  goods: "Goods",
+  stops: "Stops on the way",
+  stopDone: "Done here",
+  stopFinished: "Done",
+  notPaid: "Wait: the shipper has not paid yet. Don't go to pickup until your boss confirms or this page says it's paid.",
+  cancelled: "This trip was cancelled. Call your boss.",
+  finished: "This trip is finished. Asante!",
+  delivered: "Delivered. Safari njema! The shipper now confirms and your boss gets paid.",
+  podTake: "Photo of the signed delivery note",
+  podDone: "Delivery photo sent (tap to replace)",
+  sharingOn: "Sharing your location with the shipper while this page is open.",
+  sharingDenied: "Location is off. Allow location for this site so the shipper can follow the trip.",
+  sharingHint: "Keep this page open on the road so the shipper can follow the trip.",
+  noNetwork: "No network. Try again in a moment.",
+  uploadFailed: "Upload failed. Try again with signal.",
+  pickupCode: "Pickup code (4 digits)",
+  pickupCodeHint: "The person loading the truck has it.",
+  deliveryCode: "Delivery code (4 digits)",
+  deliveryCodeHint: "The receiver has it. No code? Send the delivery photo first, then tap Delivered.",
+  navigate: "Directions",
+  chat: "Messages",
+  chatPlaceholder: "Write a message",
+  send: "Send",
+  you: "You",
+  sos: "Emergency (SOS)",
+  sosHint: "Press if you need help. Vemi is alerted with your location.",
+  sosConfirm: "Send an SOS to Vemi now?",
+  sosSent: "SOS sent. Vemi will call you now. Police and ambulance: 999 or 112.",
+  emergencyNumbers: "Police / ambulance: 999 or 112",
+  call: "Call",
+  callVemi: "Call through Vemi",
+  callRinging: "Vemi is calling your phone now. Answer to be connected.",
+  eta: "You should arrive",
+  steps: {
+    to_pickup: "Start: heading to pickup",
+    at_pickup: "Arrived at pickup",
+    loaded: "Goods are loaded",
+    in_transit: "Leaving with the goods",
+    at_border: "Arrived at a border",
+    cleared: "Cleared the border",
+    at_dropoff: "Arrived at drop-off",
+    delivered: "Delivered",
+  },
+  status: {
+    awaiting_payment: "Waiting for payment", scheduled: "Paid: ready to go", to_pickup: "Heading to pickup", at_pickup: "At pickup", loaded: "Loaded",
+    in_transit: "On the road", at_border: "At the border", at_dropoff: "At drop-off", delivered: "Delivered", completed: "Completed", disputed: "In dispute", cancelled: "Cancelled",
+  } as Record<string, string>,
+  sms: (ref: string, url: string) => `Vemi trip ${ref}: open this link for pickup details and to update the trip: ${url}`,
+  reminder: (ref: string, url: string) => `Vemi trip ${ref} picks up tomorrow. Details and directions: ${url}`,
+};
+
+const sw: typeof en = {
+  driver: "Dereva",
+  pickup: "Kuchukua mzigo",
+  dropoff: "Kushusha mzigo",
+  goods: "Mzigo",
+  stops: "Vituo njiani",
+  stopDone: "Nimemaliza hapa",
+  stopFinished: "Imekamilika",
+  notPaid: "Subiri: mwenye mzigo bado hajalipa. Usiende kupakia mpaka bosi wako athibitishe au ukurasa huu useme imelipwa.",
+  cancelled: "Safari hii imesitishwa. Mpigie bosi wako.",
+  finished: "Safari imekamilika. Asante!",
+  delivered: "Umefikisha mzigo. Safari njema! Mwenye mzigo atathibitisha na bosi wako atalipwa.",
+  podTake: "Piga picha ya hati ya kupokea mzigo iliyosainiwa",
+  podDone: "Picha imetumwa (gusa kubadilisha)",
+  sharingOn: "Unaonyesha mahali ulipo kwa mwenye mzigo ukurasa huu ukiwa wazi.",
+  sharingDenied: "Location imezimwa. Ruhusu location kwa tovuti hii ili mwenye mzigo afuatilie safari.",
+  sharingHint: "Acha ukurasa huu wazi ukiwa barabarani ili mwenye mzigo afuatilie safari.",
+  noNetwork: "Hakuna mtandao. Jaribu tena baada ya muda mfupi.",
+  uploadFailed: "Picha haikutumwa. Jaribu tena ukiwa na mtandao.",
+  pickupCode: "Namba ya kupakia (tarakimu 4)",
+  pickupCodeHint: "Mtu anayepakia lori anayo.",
+  deliveryCode: "Namba ya kupokea (tarakimu 4)",
+  deliveryCodeHint: "Mpokeaji anayo. Huna namba? Tuma picha ya hati ya kupokea kwanza, kisha bonyeza Mzigo umefikishwa.",
+  navigate: "Ramani ya njia",
+  chat: "Ujumbe",
+  chatPlaceholder: "Andika ujumbe",
+  send: "Tuma",
+  you: "Wewe",
+  sos: "Dharura (SOS)",
+  sosHint: "Bonyeza ukihitaji msaada. Vemi watajulishwa mahali ulipo.",
+  sosConfirm: "Tuma SOS kwa Vemi sasa?",
+  sosSent: "SOS imetumwa. Vemi watakupigia sasa hivi. Polisi na ambulensi: 999 au 112.",
+  emergencyNumbers: "Polisi / ambulensi: 999 au 112",
+  call: "Piga simu",
+  callVemi: "Piga kupitia Vemi",
+  callRinging: "Vemi wanapiga simu yako sasa. Pokea ili uunganishwe.",
+  eta: "Utafika takriban",
+  steps: {
+    to_pickup: "Anza: naelekea kuchukua mzigo",
+    at_pickup: "Nimefika mahali pa kupakia",
+    loaded: "Mzigo umepakiwa",
+    in_transit: "Naondoka na mzigo",
+    at_border: "Nimefika mpakani",
+    cleared: "Nimevuka mpaka",
+    at_dropoff: "Nimefika mahali pa kushusha",
+    delivered: "Mzigo umefikishwa",
+  },
+  status: {
+    awaiting_payment: "Inasubiri malipo", scheduled: "Imelipwa: tayari kuanza", to_pickup: "Anaelekea kupakia", at_pickup: "Yuko mahali pa kupakia", loaded: "Mzigo umepakiwa",
+    in_transit: "Yuko barabarani", at_border: "Yuko mpakani", at_dropoff: "Yuko mahali pa kushusha", delivered: "Mzigo umefikishwa", completed: "Imekamilika", disputed: "Kuna malalamiko", cancelled: "Imesitishwa",
+  },
+  sms: (ref: string, url: string) => `Safari ya Vemi ${ref}: fungua kiungo hiki kuona maelezo ya kupakia na kusasisha safari: ${url}`,
+  reminder: (ref: string, url: string) => `Safari ya Vemi ${ref} inapakia kesho. Maelezo na ramani: ${url}`,
+};
+
+export const DRIVER_TEXT = { en, sw };
+
+export function driverText(lang: string | null | undefined) {
+  return DRIVER_TEXT[lang === "en" ? "en" : "sw"];
+}
+
+/** The label for a step button, in the driver's language ("cleared" is in_transit after a border). */
+export function stepLabel(lang: Lang, status: string, from: string) {
+  const t = DRIVER_TEXT[lang].steps;
+  if (status === "in_transit" && from === "at_border") return t.cleared;
+  return t[status as keyof typeof t] ?? status;
+}
