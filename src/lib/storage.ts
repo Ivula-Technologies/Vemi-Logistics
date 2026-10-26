@@ -2,13 +2,14 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+/** Vercel functions take at most 4.5 MB per request; cPanel takes more. Browsers shrink photos first (shrink-image.ts). */
+export const MAX_UPLOAD_BYTES = (process.env.VERCEL ? 4 : 8) * 1024 * 1024;
 export type Bucket = "carrier-docs" | "pod" | "photos";
 const TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
 
 export function uploadProblem(file: File | null) {
   if (!file || file.size === 0) return "Choose a file.";
-  if (file.size > MAX_UPLOAD_BYTES) return "That file is over 8 MB. Take a smaller photo or scan.";
+  if (file.size > MAX_UPLOAD_BYTES) return `That file is over ${MAX_UPLOAD_BYTES / 1024 / 1024} MB. Take a smaller photo or scan.`;
   if (!TYPES[file.type]) return "Upload a photo (JPG, PNG, WebP) or a PDF.";
   return null;
 }
@@ -16,7 +17,7 @@ export function uploadProblem(file: File | null) {
 /** Driver and truck photos: images only, up to 5 MB. */
 export function photoProblem(file: File | null) {
   if (!file || file.size === 0) return "Choose a photo.";
-  if (file.size > 5 * 1024 * 1024) return "That photo is over 5 MB. Take a smaller one.";
+  if (file.size > Math.min(5 * 1024 * 1024, MAX_UPLOAD_BYTES)) return "That photo is too big. Take a smaller one.";
   if (!file.type.startsWith("image/") || !TYPES[file.type]) return "Upload a JPG, PNG or WebP photo.";
   return null;
 }

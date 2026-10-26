@@ -25,6 +25,7 @@ import { displayPhone } from "@/lib/phone";
 import { percent } from "@/lib/commission";
 import { formatDate, formatDateTime, formatKes } from "@/lib/utils";
 import type { TripView } from "@/lib/trip-view";
+import { FileInput } from "@/components/app/file-input";
 
 function site() {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
@@ -126,7 +127,7 @@ export function DeliveredPanel({ view }: { view: TripView }) {
       <form action={raiseDispute} className="mt-2 space-y-3"><Hidden tripId={trip.id} />
         <Textarea name="reason" rows={3} minLength={10} required placeholder="What's missing or damaged? How many units?" aria-label="What went wrong" />
         <Field label="Value of the loss or damage (KES, optional)" htmlFor="claim" hint={view.load.insure ? `Covered up to ${formatKes(view.load.declared_value)} by your cargo cover.` : "Without cargo cover, Vemi settles from the carrier's payout where the carrier is at fault."}><Input id="claim" name="claim" type="number" min="1" inputMode="numeric" /></Field>
-        <Field label="Photos (up to 3)" htmlFor="photos"><Input id="photos" name="photos" type="file" accept="image/*" multiple capture="environment" /></Field>
+        <Field label="Photos (up to 3)" htmlFor="photos"><FileInput id="photos" name="photos" accept="image/*" multiple capture="environment" /></Field>
         <SubmitButton variant="destructive" size="sm" pendingLabel="Sending…">Report a problem</SubmitButton>
       </form>
     </details>
@@ -215,7 +216,7 @@ export function CarrierExtras({ view }: { view: TripView }) {
   if (!inProgress) return null;
   return <Panel title="Photos, extras and fuel" tone="plain">
     <div className="space-y-5 text-sm">
-      {showPod ? <div><p className="mb-2 font-semibold">Delivery photo</p><form action={uploadPodAsCarrier} className="flex flex-col gap-2 sm:flex-row"><Hidden tripId={trip.id} /><Input name="file" type="file" accept="image/*,application/pdf" capture="environment" required /><SubmitButton variant="outline" pendingLabel="Uploading…"><Camera className="mr-2 h-4 w-4" />Upload</SubmitButton></form><p className="mt-1 text-xs text-muted-foreground">A photo of the signed delivery note speeds up confirmation and your payout.</p></div> : null}
+      {showPod ? <div><p className="mb-2 font-semibold">Delivery photo</p><form action={uploadPodAsCarrier} className="flex flex-col gap-2 sm:flex-row"><Hidden tripId={trip.id} /><FileInput name="file" accept="image/*,application/pdf" capture="environment" required /><SubmitButton variant="outline" pendingLabel="Uploading…"><Camera className="mr-2 h-4 w-4" />Upload</SubmitButton></form><p className="mt-1 text-xs text-muted-foreground">A photo of the signed delivery note speeds up confirmation and your payout.</p></div> : null}
       {canAdvance ? <div><p className="mb-1 flex items-center gap-1.5 font-semibold"><Fuel className="h-4 w-4 text-primary" />Fuel advance</p><p className="mb-2 text-xs text-muted-foreground">Take up to {formatKes(maxAdvance)} of your payout now for a {percent(settings?.fuel_advance_fee_bps ?? 300)} fee. The rest comes after delivery.</p>
         <form action={requestFuelAdvance} className="flex gap-2"><Hidden tripId={trip.id} /><Input name="amount" type="number" min="1000" max={maxAdvance} defaultValue={maxAdvance} aria-label="Advance amount" /><SubmitButton variant="outline" pendingLabel="…">Request</SubmitButton></form></div>
         : trip.advance_amount ? <p className="flex items-center gap-1.5"><Fuel className="h-4 w-4 text-primary" />Fuel advance: {formatKes(trip.advance_amount - trip.advance_fee)} sent or on its way (fee {formatKes(trip.advance_fee)}).</p> : null}

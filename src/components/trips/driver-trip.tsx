@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { currentPosition } from "@/components/trips/status-buttons";
 import { DRIVER_TEXT, stepLabel, type Lang } from "@/lib/driver-i18n";
+import { shrinkImage } from "@/lib/shrink-image";
 import type { Step, TripStatus } from "@/lib/trips";
 
 const SHARING: TripStatus[] = ["to_pickup", "loaded", "in_transit", "at_border"];
@@ -53,7 +54,7 @@ export function DriverTrip({ token, status, steps, hasPod, lang, requireCodes }:
 
   async function upload(file: File) {
     setBusy("pod"); setError(null);
-    const form = new FormData(); form.set("file", file);
+    const form = new FormData(); form.set("file", await shrinkImage(file));
     const res = await fetch(`/api/driver/${token}/pod`, { method: "POST", body: form }).catch(() => null);
     const data = res ? await res.json().catch(() => null) as { error?: string } | null : null;
     setBusy(null);
