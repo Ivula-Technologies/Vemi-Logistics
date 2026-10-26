@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#151a24">
+<title>You're offline · Vemi</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fbf9f7; --fg: #151a24; --muted: #5d6370; --btn: #e8590c; --btn-fg: #fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f131a; --fg: #f3efea; --muted: #a2a7b2; --btn: #f97a2b; --btn-fg: #0f131a; } }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px; box-sizing: border-box; text-align: center; }
+  img { width: 72px; height: auto; border-radius: 16px; }
+  h1 { font-size: 1.5rem; margin: 16px 0 8px; }
+  p { color: var(--muted); max-width: 22rem; margin: 0 auto; }
+  button { margin-top: 20px; border: 0; border-radius: 8px; padding: 12px 20px; background: var(--btn); color: var(--btn-fg); font: inherit; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <img src="/brand/vemi-mark-256.png" alt="">
+  <h1>No network right now</h1>
+  <p>Vemi needs a connection to show loads and trips. On the road, this often comes back in a few minutes. Your trip updates are safe.</p>
+  <button type="button" onclick="location.reload()">Try again</button>
+</main>
+</body>
+</html>

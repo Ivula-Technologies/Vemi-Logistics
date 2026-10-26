@@ -4,6 +4,7 @@ Phone-first freight marketplace for Kenya and East Africa: shippers post loads, 
 
 - Product plan, pricing and regulatory notes: `docs/PLAN.md`
 - Deploying on cPanel + Supabase: `DEPLOY.md`
+- Every Uber / Uber Freight feature and how Vemi does it: `docs/UBER-FEATURES.md`
 
 ## Stack
 
@@ -13,10 +14,11 @@ Next.js 16 (App Router, standalone output) · Supabase (Postgres with row-level 
 
 | Who | Where | What |
 |---|---|---|
-| Shipper | `/loads/new`, `/loads/[id]`, `/trips/[id]` | Post a load with a guide price, compare bids, book, pay, follow the trip, confirm or dispute, rate |
-| Carrier | `/profile`, `/fleet`, `/board`, `/trips/[id]`, `/earnings` | Get verified, add trucks and drivers, bid, assign, update the trip, upload proof of delivery, see payouts |
-| Driver | `/d/[token]` | No account: a secret link per trip with pickup contacts, big step buttons, location sharing and the delivery photo |
-| Vemi ops | `/admin` | Verify carriers, record bank payments, settle disputes, cancel trips, export the M-Pesa bulk payout CSV and mark payouts paid |
+| Shipper | `/loads/new`, `/loads/[id]`, `/trips/[id]`, `/wallet`, `/business`, `/reports` | Post a load (stops, pins, instant booking, codes, cargo cover, favourites first), compare bids, book, pay (M-Pesa in parts, card, wallet, on account, bank), chat, track with ETA, share a tracking link, confirm or claim, rate, tip, book again; team logins and monthly reports |
+| Carrier | `/profile`, `/fleet`, `/board`, `/trips/[id]`, `/earnings` | Get verified, add trucks and drivers (photos, language), mark trucks free, bid or book now, assign, update with codes, ask for extras or a fuel advance, see payouts |
+| Driver | `/d/[token]` | No account: a secret link per trip in Kiswahili or English, directions, stops, codes, chat, call through Vemi, SOS, location sharing and the delivery photo |
+| Receiver | `/t/[token]` | Live tracking link: map, status and ETA, no prices or phone numbers |
+| Vemi ops | `/admin` | Live map with SOS and truck alerts, verify carriers, payments, disputes with photo claims, payouts and cash-outs (CSV or M-Pesa B2C), promo codes, business credit, prices and fees |
 
 Every state change (bid, book, pay, move, confirm, dispute, payout) is a database function in `supabase/migrations/` that checks who is calling. The app hides buttons but never relies on that for security. Contact details stay hidden until a trip is paid, so deals can't be taken off the platform before then.
 
