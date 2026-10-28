@@ -292,7 +292,7 @@ export function LoadBox({ view }: { view: TripView }) {
   return <div className="space-y-2 rounded-lg border bg-card p-4 text-sm">
     <p className="font-semibold">Load {l.ref}</p>
     <p>{CARGO_TYPES[l.cargo_type]}: {l.cargo_description}</p>
-    <p className="text-muted-foreground">{Number(l.weight_tonnes)} t · {TRUCK_TYPES[l.truck_type]?.label} · pickup {formatDate(l.pickup_date)}{l.pickup_window !== "anytime" ? ` (${PICKUP_WINDOWS[l.pickup_window].toLowerCase()})` : ""}</p>
+    <p className="text-muted-foreground">{Number(l.weight_tonnes)} t{l.part_load ? " (part load, shares the truck)" : ""} · {TRUCK_TYPES[l.truck_type]?.label} · pickup {formatDate(l.pickup_date)}{l.pickup_window !== "anytime" ? ` (${PICKUP_WINDOWS[l.pickup_window].toLowerCase()})` : ""}</p>
     {trip.expected_delivery ? <p className="text-muted-foreground">Expected delivery by {formatDate(trip.expected_delivery)}</p> : null}
     <p><span className="text-muted-foreground">From:</span> {l.origin_detail || origin.name}</p>
     {stops.map((s) => { const contact = c?.stops.find((x) => x.seq === s.seq); return <p key={s.id}><span className="text-muted-foreground">Stop {s.seq}{s.done_at ? " (done)" : ""}:</span> {s.kind === "pickup" ? "pick up at " : "drop at "}{s.detail || places.get(s.place_id)?.name}{contact?.phone ? <> · <a href={`tel:+${contact.phone}`} className="font-semibold text-primary">{contact.name ? `${contact.name} ` : ""}{displayPhone(contact.phone)}</a></> : null}</p>; })}

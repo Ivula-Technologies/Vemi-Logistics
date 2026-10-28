@@ -1,3 +1,5 @@
+import { canSharePart, partLoadPrice, spaceLeft } from "@/lib/pricing";
+import { canRideAlong } from "@/lib/part-loads";
 import { describe, expect, it } from "vitest";
 import { eta, formatDuration, travelHours } from "@/lib/eta";
 import { quoteRoute, withSurcharge, type Place } from "@/lib/pricing";
@@ -76,5 +78,40 @@ describe("border papers", () => {
   });
   it("has Kiswahili for every paper", () => {
     for (const k of BORDER_PAPER_KINDS) expect(BORDER_PAPERS[k].sw.length).toBeGreaterThan(3);
+  });
+});
+
+describe("part loads", () => {
+  const places = new Map([
+    ["mombasa", { lat: -4.04, lng: 39.67 }], ["mariakani", { lat: -3.86, lng: 39.47 }],
+    ["nairobi", { lat: -1.29, lng: 36.82 }], ["thika", { lat: -1.03, lng: 37.07 }], ["kisumu", { lat: -0.09, lng: 34.77 }],
+  ]);
+  const mine = { origin_id: "mombasa", destination_id: "nairobi", pickup_date: "2026-11-02", weight_tonnes: 8, truck_type: "trailer" as const };
+
+  it("only offers sharing on lorries and trailers, up to 60% of the truck", () => {
+    expect(canSharePart(8, "trailer")).toBe(true);
+    expect(canSharePart(17, "trailer")).toBe(false);
+    expect(canSharePart(2, "tanker")).toBe(false);
+    expect(canSharePart(1, "canter")).toBe(false);
+  });
+
+  it("prices a share of the truck with a 20% premium and a quarter-truck floor", () => {
+    expect(partLoadPrice(100_000, 7, "trailer")).toBe(30_000);
+    expect(partLoadPrice(100_000, 14, "trailer")).toBe(60_000);
+    expect(partLoadPrice(5_000, 1, "lorry_7t")).toBe(3_000);
+  });
+
+  it("works out the space left", () => {
+    expect(spaceLeft(28, [8, 6.5])).toBe(13.5);
+    expect(spaceLeft(10, [8, 6])).toBe(0);
+  });
+
+  it("matches loads going the same way within a day that fit", () => {
+    expect(canRideAlong(mine, { ...mine, origin_id: "mariakani", destination_id: "thika", weight_tonnes: 6, pickup_date: "2026-11-03" }, places, 20, 28)).toBe(true);
+    expect(canRideAlong(mine, { ...mine, weight_tonnes: 21 }, places, 20, 28)).toBe(false);
+    expect(canRideAlong(mine, { ...mine, pickup_date: "2026-11-05" }, places, 20, 28)).toBe(false);
+    expect(canRideAlong(mine, { ...mine, destination_id: "kisumu" }, places, 20, 28)).toBe(false);
+    expect(canRideAlong(mine, { ...mine, truck_type: "reefer" }, places, 20, 28)).toBe(false);
+    expect(canRideAlong(mine, { ...mine, truck_type: "lorry_10t", weight_tonnes: 4 }, places, 20, 28)).toBe(true);
   });
 });

@@ -9,6 +9,7 @@ import { TripMap } from "@/components/app/trip-map";
 import { ShareTrackingLink } from "@/components/trips/share-driver-link";
 import { SosButton, TripChat } from "@/components/trips/trip-tools";
 import { BorderPapersPanel } from "@/components/trips/border-papers";
+import { FillTruckPanel } from "@/components/trips/fill-truck";
 import {
   AdminPanel, CarrierAssign, CarrierCancel, CarrierExtras, CarrierMove, ChargesPanel, CodesPanel, CompletedPanel, DeliveredPanel,
   LoadBox, MoneyBox, Panel, PeopleBox, ShipperCancel, ShipperPay,
@@ -75,6 +76,7 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         {viewer === "shipper" ? <CodesPanel view={view} /> : null}
         <ChargesPanel view={view} />
         <BorderPapersPanel view={view} />
+        <FillTruckPanel view={view} />
         {viewer === "shipper" && trip.status === "delivered" ? <DeliveredPanel view={view} /> : null}
         {viewer !== "admin" && trip.status === "completed" ? <CompletedPanel view={view} defaultPhone={defaultPhone} /> : null}
 

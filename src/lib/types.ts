@@ -38,6 +38,7 @@ export type Load = {
   status: LoadStatus; created_at: string; updated_at: string;
   instant_book: boolean; pickup_window: PickupWindow; origin_lat: number | null; origin_lng: number | null; destination_lat: number | null; destination_lng: number | null;
   favourites_until: string | null; surge_bps: number; stop_count: number; declared_value: number | null; insure: boolean; require_codes: boolean; copied_from: string | null;
+  part_load: boolean;
 };
 
 export type StopContact = { seq: number; name: string | null; phone: string | null };

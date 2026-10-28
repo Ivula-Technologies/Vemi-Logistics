@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LOAD_FIELDS, MAX_STOPS, loadSchema, savedPlaceSchema, stopSchema } from "@/lib/validations";
 import { placeMap } from "@/lib/places";
-import { isTruckType, quoteRoute, withSurcharge, type RoutePoint } from "@/lib/pricing";
+import { TRUCK_TYPES, canSharePart, isTruckType, partLoadPrice, quoteRoute, withSurcharge, type RoutePoint } from "@/lib/pricing";
 import { eatToday, formatKes } from "@/lib/utils";
 import { notifyUser } from "@/lib/notify";
 import { announceLoad } from "@/lib/load-alerts";
@@ -44,6 +44,10 @@ export async function postLoad(_: ActionState, formData: FormData): Promise<Acti
     { ...destination, pin: pin(input.destinationLat, input.destinationLng) },
   ];
 
+  if (input.partLoad && !canSharePart(input.weightTonnes, input.truckType)) {
+    return { status: "error", message: CHECK, fieldErrors: { weightTonnes: [`A shared truck takes up to ${Math.floor(TRUCK_TYPES[input.truckType].tonnes * 0.6)} t on a ${TRUCK_TYPES[input.truckType].short.toLowerCase()}. Book the whole truck instead.`] } };
+  }
+
   const supabase = await createClient();
   const [{ data: settings }, { data: surge }, { count: favourites }] = await Promise.all([
     supabase.from("platform_settings").select("stop_fee_kes").single(),
@@ -53,15 +57,17 @@ export async function postLoad(_: ActionState, formData: FormData): Promise<Acti
   const route = quoteRoute(points, input.truckType, settings?.stop_fee_kes);
   const lane = surge as LaneSurge | null;
   const surgeBps = (lane?.urgent_bps ?? 0) + (lane?.busy_bps ?? 0);
+  const wholeTruck = withSurcharge(route.price, surgeBps);
+  const guide = input.partLoad ? partLoadPrice(wholeTruck, input.weightTonnes, input.truckType) : wholeTruck;
   const favouritesFirst = input.favouritesHours > 0 && (favourites ?? 0) > 0;
 
   const { data: load, error } = await supabase.from("loads").insert({
     shipper_id: accountId, origin_id: origin.id, origin_detail: input.originDetail, destination_id: destination.id, destination_detail: input.destinationDetail,
     pickup_date: input.pickupDate, cargo_type: input.cargoType, cargo_description: input.cargoDescription, weight_tonnes: input.weightTonnes,
-    truck_type: input.truckType, distance_km: route.distanceKm, border_crossings: route.crossings, guide_price: withSurcharge(route.price, surgeBps), price: input.price, notes: input.notes,
+    truck_type: input.truckType, distance_km: route.distanceKm, border_crossings: route.crossings, guide_price: guide, price: input.price, notes: input.notes,
     instant_book: input.instantBook, pickup_window: input.pickupWindow, origin_lat: input.originLat, origin_lng: input.originLng, destination_lat: input.destinationLat, destination_lng: input.destinationLng,
     favourites_until: favouritesFirst ? new Date(Date.now() + input.favouritesHours * 3_600_000).toISOString() : null,
-    surge_bps: surgeBps, stop_count: stops.length, declared_value: input.declaredValue, insure: input.insure, require_codes: input.requireCodes, copied_from: input.copiedFrom,
+    surge_bps: surgeBps, stop_count: stops.length, declared_value: input.declaredValue, insure: input.insure, require_codes: input.requireCodes, copied_from: input.copiedFrom, part_load: input.partLoad,
   }).select("id, ref").single();
   if (error) return { status: "error", message: error.message };
 
