@@ -7,12 +7,12 @@ import { getSession, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOps, notifyUser, sendSms, smsConfigured } from "@/lib/notify";
-import { storePrivateFile, uploadProblem } from "@/lib/storage";
+import { removePrivateFile, storePrivateFile, uploadProblem } from "@/lib/storage";
 import { tellAboutMessage, tellShipperAboutStatus } from "@/lib/trip-notify";
 import { startTripCall, type CallTarget } from "@/lib/calls";
 import { driverText } from "@/lib/driver-i18n";
 import { chargeSchema } from "@/lib/validations";
-import { COMPLIMENTS, type TripStatus } from "@/lib/trips";
+import { BORDER_PAPERS, BORDER_PAPER_KINDS, COMPLIMENTS, type BorderPaperKind, type TripStatus } from "@/lib/trips";
 import { formatKes } from "@/lib/utils";
 import type { ActionState } from "@/lib/types";
 
@@ -326,4 +326,45 @@ export async function callThroughVemi(tripId: string, target: CallTarget): Promi
   if (!trip) return { error: "Trip not found." };
   const error = await startTripCall(tripId, trip.carrier_id === user.id ? "carrier" : "shipper", profile.phone, target);
   return error ? { error } : {};
+}
+
+/** A customs or transit paper on a cross-border trip: a reference number, a file, or both. */
+export async function addTripPaper(formData: FormData) {
+  await getSession();
+  const tripId = String(formData.get("tripId"));
+  const kind = String(formData.get("kind") ?? "");
+  const reference = String(formData.get("reference") ?? "").trim().slice(0, 80);
+  const raw = formData.get("file");
+  const file = raw instanceof File && raw.size > 0 ? raw : null;
+  if (!(BORDER_PAPER_KINDS as string[]).includes(kind)) redirect(back(tripId, { error: "Choose which paper this is." }, "#papers"));
+  if (!reference && !file) redirect(back(tripId, { error: "Add a reference number or a file." }, "#papers"));
+  const problem = file ? uploadProblem(file) : null;
+  if (problem) redirect(back(tripId, { error: problem }, "#papers"));
+  const supabase = await createClient();
+  // Only store the file once we know this person is on the trip (row-level security hides other trips).
+  const { data: trip } = await supabase.from("trips").select("id, ref, shipper_id, carrier_id").eq("id", tripId).maybeSingle();
+  if (!trip) redirect(back(tripId, { error: "Trip not found." }));
+  const path = file ? await storePrivateFile("trip-docs", tripId, file) : null;
+  const { error } = await supabase.rpc("add_trip_document", { p_trip: tripId, p_kind: kind, p_reference: reference || null, p_path: path });
+  if (error) {
+    if (path) await removePrivateFile("trip-docs", path);
+    redirect(back(tripId, { error: error.message }, "#papers"));
+  }
+  const { user } = await getSession();
+  const other = user.id === trip.carrier_id ? trip.shipper_id : trip.carrier_id;
+  const label = BORDER_PAPERS[kind as BorderPaperKind].en;
+  after(() => notifyUser(other, `Border paper added: trip ${trip.ref}`, `${label} was added to trip ${trip.ref}${reference ? ` (${reference})` : ""}.`, `/trips/${tripId}#papers`, { key: `paper-${tripId}-${kind}-${Date.now()}`, pushOnly: true }));
+  revalidatePath(`/trips/${tripId}`);
+  redirect(back(tripId, { saved: "paper" }, "#papers"));
+}
+
+export async function removeTripPaper(formData: FormData) {
+  await getSession();
+  const tripId = String(formData.get("tripId"));
+  const supabase = await createClient();
+  const { data: path, error } = await supabase.rpc("remove_trip_document", { p_id: String(formData.get("paperId")) });
+  if (error) redirect(back(tripId, { error: error.message }, "#papers"));
+  if (path) await removePrivateFile("trip-docs", path as string);
+  revalidatePath(`/trips/${tripId}`);
+  redirect(back(tripId, { saved: "paper-removed" }, "#papers"));
 }

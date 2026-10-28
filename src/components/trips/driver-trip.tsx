@@ -102,3 +102,40 @@ export function StopDoneButton({ token, seq, lang }: { token: string; seq: numbe
   }
   return <div><Button size="sm" variant="outline" onClick={done} disabled={busy}>{busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}{t.stopDone}</Button>{error ? <p role="alert" className="mt-1 text-xs text-destructive">{error}</p> : null}</div>;
 }
+
+/** The driver adds a border paper on the way: the seal number, or a photo of stamped papers. */
+export function DriverPaperForm({ token, lang, kinds }: { token: string; lang: Lang; kinds: { value: string; label: string }[] }) {
+  const t = DRIVER_TEXT[lang];
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formEl = e.currentTarget;
+    const data = new FormData(formEl);
+    const file = data.get("file");
+    const hasFile = file instanceof File && file.size > 0;
+    if (!String(data.get("reference") ?? "").trim() && !hasFile) { setError(t.paperNeedOne); return; }
+    if (hasFile) data.set("file", await shrinkImage(file));
+    setBusy(true); setError(null); setSaved(false);
+    const res = await fetch(`/api/driver/${token}/paper`, { method: "POST", body: data }).catch(() => null);
+    const body = res ? await res.json().catch(() => null) as { error?: string } | null : null;
+    setBusy(false);
+    if (!res?.ok) { setError(body?.error ?? t.uploadFailed); return; }
+    formEl.reset(); setSaved(true);
+    router.refresh();
+  }
+  return <form onSubmit={submit} className="mt-3 space-y-2 rounded-md border p-3">
+    <p className="text-sm font-semibold">{t.paperAdd}</p>
+    <label className="block text-xs text-muted-foreground" htmlFor="driver-paper-kind">{t.paperKind}</label>
+    <select id="driver-paper-kind" name="kind" defaultValue="border_release" className="h-11 w-full rounded-md border bg-background px-3 text-sm">{kinds.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}</select>
+    <label className="block text-xs text-muted-foreground" htmlFor="driver-paper-ref">{t.paperRef}</label>
+    <Input id="driver-paper-ref" name="reference" maxLength={80} className="h-11" />
+    <label className="block text-xs text-muted-foreground" htmlFor="driver-paper-file">{t.paperPhoto}</label>
+    <Input id="driver-paper-file" name="file" type="file" accept="image/*" capture="environment" />
+    <Button type="submit" className="h-12 w-full" disabled={busy}>{busy ? <LoaderCircle className="mr-2 h-5 w-5 animate-spin" /> : null}{t.paperSave}</Button>
+    {saved ? <p className="text-sm text-emerald-700">{t.paperSaved}</p> : null}
+    {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+  </form>;
+}

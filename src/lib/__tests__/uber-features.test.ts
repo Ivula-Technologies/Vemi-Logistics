@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { eta, formatDuration, travelHours } from "@/lib/eta";
 import { quoteRoute, withSurcharge, type Place } from "@/lib/pricing";
 import { driverText, stepLabel } from "@/lib/driver-i18n";
-import { nextSteps } from "@/lib/trips";
+import { BORDER_PAPERS, BORDER_PAPER_KINDS, borderHours, missingPapers, nextSteps } from "@/lib/trips";
 
 const mombasa: Place = { id: "mombasa", name: "Mombasa", country: "KE", lat: -4.0435, lng: 39.6682 };
 const nairobi: Place = { id: "nairobi", name: "Nairobi", country: "KE", lat: -1.2921, lng: 36.8219 };
@@ -54,5 +54,27 @@ describe("driver page", () => {
     expect(nextSteps("at_pickup", false)[0].needsCode).toBe("pickup");
     expect(nextSteps("at_dropoff", false)[0].needsCode).toBe("delivery");
     expect(nextSteps("loaded", false)[0].needsCode).toBeUndefined();
+  });
+});
+
+describe("border papers", () => {
+  it("lists the required papers still missing", () => {
+    expect(missingPapers([])).toEqual(["customs_entry", "commercial_invoice", "packing_list"]);
+    expect(missingPapers(["customs_entry", "rects_seal", "packing_list"])).toEqual(["commercial_invoice"]);
+    expect(missingPapers(["customs_entry", "commercial_invoice", "packing_list"])).toEqual([]);
+  });
+  it("measures time at each border", () => {
+    const events = [
+      { status: "in_transit", created_at: "2026-10-28T06:00:00Z" },
+      { status: "at_border", created_at: "2026-10-28T10:00:00Z" },
+      { status: "in_transit", created_at: "2026-10-28T19:30:00Z" },
+      { status: "at_border", created_at: "2026-10-29T08:00:00Z" },
+      { status: "delivered", created_at: "2026-10-29T10:00:00Z" },
+    ];
+    expect(borderHours(events.reverse())).toEqual([9.5, 2]);
+    expect(borderHours([{ status: "at_border", created_at: "2026-10-28T10:00:00Z" }])).toEqual([]);
+  });
+  it("has Kiswahili for every paper", () => {
+    for (const k of BORDER_PAPER_KINDS) expect(BORDER_PAPERS[k].sw.length).toBeGreaterThan(3);
   });
 });

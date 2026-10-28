@@ -74,6 +74,7 @@ export type Payout = { id: string; trip_id: string; carrier_id: string; amount: 
 export type WalletEntry = { id: number; account_id: string; amount: number; kind: string; reason: string; trip_id: string | null; created_at: string };
 export type Refund = { id: string; account_id: string; amount: number; phone: string; status: "queued" | "sending" | "paid" | "cancelled"; reference: string | null; created_at: string; paid_at: string | null };
 export type PromoCode = { code: string; description: string | null; kind: "percent" | "amount"; value: number; max_discount_kes: number | null; max_uses: number | null; uses: number; first_trip_only: boolean; min_price_kes: number; expires_at: string | null; active: boolean; created_at: string };
+export type TripDocument = { id: string; trip_id: string; kind: string; reference: string | null; path: string | null; added_as: "shipper" | "carrier" | "driver" | "admin"; created_at: string };
 export type CarrierScore = { carrier_id: string; completed: number; on_time_pct: number | null; cancellations: number; compliments: string[] };
 
 export type PlatformSettings = {

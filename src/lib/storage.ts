@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 /** Vercel functions take at most 4.5 MB per request; cPanel takes more. Browsers shrink photos first (shrink-image.ts). */
 export const MAX_UPLOAD_BYTES = (process.env.VERCEL ? 4 : 8) * 1024 * 1024;
-export type Bucket = "carrier-docs" | "pod" | "photos";
+export type Bucket = "carrier-docs" | "pod" | "photos" | "trip-docs";
 const TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
 
 export function uploadProblem(file: File | null) {

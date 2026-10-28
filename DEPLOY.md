@@ -5,7 +5,7 @@ Vemi runs as a Node.js app (Next.js standalone server) under cPanel's **Setup No
 ## 1. Supabase (once)
 
 1. Create a Supabase project (region: closest to Kenya, e.g. Frankfurt or Mumbai).
-2. **SQL Editor**: paste all of `database/20261025090000_vemi_core.sql` (in the package, or `supabase/migrations/` in the repo) and click **Run**. Then do the same with `database/20261025120000_uber_features.sql`. Together they create every table, access rule, function, the private storage buckets and the list of towns and border posts. Always run them in date order.
+2. **SQL Editor**: paste all of `database/20261025090000_vemi_core.sql` (in the package, or `supabase/migrations/` in the repo) and click **Run**. Then do the same with `database/20261025120000_uber_features.sql`, and then `database/20261028090000_border_papers.sql`. Together they create every table, access rule, function, the private storage buckets and the list of towns and border posts. Always run them in date order.
 3. **Authentication > URL Configuration**: Site URL `https://vemi.ivulatechnologies.com`; add `https://vemi.ivulatechnologies.com/auth/callback` to Redirect URLs.
 4. **Authentication > Emails**: optional but recommended, use Resend SMTP so confirmation emails come from your domain.
 5. **Project Settings > API**: copy the Project URL, the publishable key and the secret key.
