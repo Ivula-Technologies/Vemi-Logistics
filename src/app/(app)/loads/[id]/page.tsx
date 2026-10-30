@@ -91,7 +91,7 @@ export default async function LoadPage({ params, searchParams }: { params: Promi
             {stops.map((stop) => <Row key={stop.id} label={`Stop ${stop.seq}`}>{stop.kind === "pickup" ? "Pick up at " : "Drop at "}{stop.detail || places.get(stop.place_id)?.name}</Row>)}
             <Row label="Drop-off">{l.destination_detail || destination?.name}</Row>
             <Row label="Goods">{CARGO_TYPES[l.cargo_type]}: {l.cargo_description}</Row>
-            <Row label="Weight">{Number(l.weight_tonnes)} t</Row>
+            <Row label="Weight">{Number(l.weight_tonnes)} t{l.part_load ? " · shared truck" : ""}</Row>
             <Row label="Truck">{TRUCK_TYPES[l.truck_type]?.label}</Row>
             <Row label="Distance">about {l.distance_km.toLocaleString()} km{l.border_crossings ? `, ${l.border_crossings} border${l.border_crossings > 1 ? "s" : ""}` : ""}</Row>
             <Row label="Guide price">{formatKes(l.guide_price)}{l.surge_bps ? ` (incl. ${(l.surge_bps / 100).toFixed(0)}% busy or urgent)` : ""}</Row>

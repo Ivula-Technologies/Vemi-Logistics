@@ -8,6 +8,8 @@ import { AutoRefresh } from "@/components/app/auto-refresh";
 import { TripMap } from "@/components/app/trip-map";
 import { ShareTrackingLink } from "@/components/trips/share-driver-link";
 import { SosButton, TripChat } from "@/components/trips/trip-tools";
+import { BorderPapersPanel } from "@/components/trips/border-papers";
+import { FillTruckPanel } from "@/components/trips/fill-truck";
 import {
   AdminPanel, CarrierAssign, CarrierCancel, CarrierExtras, CarrierMove, ChargesPanel, CodesPanel, CompletedPanel, DeliveredPanel,
   LoadBox, MoneyBox, Panel, PeopleBox, ShipperCancel, ShipperPay,
@@ -31,7 +33,7 @@ const SAVED: Record<string, string> = {
   disputed: "We've got it. Vemi support will call you within one working day; the carrier's payout is on hold.", rated: "Thanks for the rating.",
   favourite: "Saved as a favourite carrier. You can send loads to your favourites first.", unfavourite: "Removed from your favourites.",
   payment: "Bank payment recorded.", dispute: "Dispute updated.", cancelled: "Trip cancelled.", Saved: "Saved.", "Alert cleared": "Alert cleared.",
-  booked: "Booked! Pay now so the carrier can dispatch the truck.", instant: "Booked instantly! Pay now so the truck can be dispatched.",
+  booked: "Booked! Pay now so the carrier can dispatch the truck.", paper: "Border paper added. The other side and the driver can see it.", "paper-removed": "Paper removed.", instant: "Booked instantly! Pay now so the truck can be dispatched.",
 };
 
 type Query = { error?: string; saved?: string; booked?: string; pay?: string; off?: string };
@@ -73,6 +75,8 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         {viewer === "shipper" && trip.balance > 0 && !trip.on_credit ? <ShipperPay view={view} defaultPhone={defaultPhone} payState={query.pay} /> : null}
         {viewer === "shipper" ? <CodesPanel view={view} /> : null}
         <ChargesPanel view={view} />
+        <BorderPapersPanel view={view} />
+        <FillTruckPanel view={view} />
         {viewer === "shipper" && trip.status === "delivered" ? <DeliveredPanel view={view} /> : null}
         {viewer !== "admin" && trip.status === "completed" ? <CompletedPanel view={view} defaultPhone={defaultPhone} /> : null}
 

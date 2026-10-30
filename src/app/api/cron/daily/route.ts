@@ -40,6 +40,13 @@ export async function GET(request: Request) {
     `Your ${DOCUMENT_KINDS[doc.kind as keyof typeof DOCUMENT_KINDS] ?? doc.kind} expires on ${formatDate(doc.expires_on)}. Upload the new one so you can keep booking loads.`, "/profile#documents", { sms: true, key: `expiry-${doc.id}` })));
   await Promise.all(jobs.overdue_invoices.map((invoice) => notifyUser(invoice.shipper_id, `Invoice overdue: ${invoice.ref}`,
     `${formatKes(invoice.balance)} for ${invoice.ref} was due on ${formatDate(invoice.credit_due_on)}. Pay by M-Pesa, card or bank to keep booking on account.`, `/trips/${invoice.id}`, { sms: true })));
+  // Cross-border trips picking up within a day with no customs entry yet: tell the shipper and the carrier.
+  const { data: papersDue } = await admin.rpc("papers_reminders");
+  const due = (papersDue ?? []) as { id: string; ref: string; shipper_id: string; carrier_id: string }[];
+  await Promise.all(due.flatMap((trip) => [
+    notifyUser(trip.shipper_id, `Border papers needed: ${trip.ref}`, `Trip ${trip.ref} crosses a border and picks up soon, but the customs entry (or T1) is not on the trip yet. Add the entry number, invoice and packing list so the truck is not held at the border.`, `/trips/${trip.id}#papers`, { sms: true, key: `papers-${trip.id}` }),
+    notifyUser(trip.carrier_id, `Border papers missing: ${trip.ref}`, `The customs entry for ${trip.ref} is not on the trip yet. Check with the shipper before the truck leaves.`, `/trips/${trip.id}#papers`, { key: `papers-c-${trip.id}` }),
+  ]));
 
-  return NextResponse.json({ auto_confirmed: jobs.auto_confirmed, expired_loads: jobs.expired_loads, pickup_reminders: jobs.pickup_reminders.length, expiring_documents: jobs.expiring_documents.length, overdue_invoices: jobs.overdue_invoices.length });
+  return NextResponse.json({ papers_reminders: due.length, auto_confirmed: jobs.auto_confirmed, expired_loads: jobs.expired_loads, pickup_reminders: jobs.pickup_reminders.length, expiring_documents: jobs.expiring_documents.length, overdue_invoices: jobs.overdue_invoices.length });
 }

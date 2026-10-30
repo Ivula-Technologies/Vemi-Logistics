@@ -1,0 +1,75 @@
+name: Build Android Tester App
+
+# Builds the signed tester .apk (android/README.md). Runs when android/ changes, or by hand, and commits it to
+# public/download/vemi-tester.apk so testers download it from the website.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-android-tester.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: android/package-lock.json
+
+      - run: npm ci
+
+      - name: Generate the Android project
+        env:
+          # Each build needs a higher version code so testers can install it over the last one.
+          VERSION_CODE: ${{ github.run_number }}
+        run: node build-project.mjs
+
+      - name: Build the app
+        working-directory: android/build/project
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Sign with the tester key
+        run: |
+          tools="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          apk=build/project/app/build/outputs/apk/release/app-release-unsigned.apk
+          mkdir -p build/out
+          "$tools/zipalign" -f -p 4 "$apk" build/aligned.apk
+          "$tools/apksigner" sign --ks tester-key/vemi-tester.p12 --ks-pass pass:vemi-tester --ks-key-alias tester \
+            --out "build/out/vemi-tester-${{ github.run_number }}.apk" build/aligned.apk
+          "$tools/apksigner" verify --print-certs "build/out/vemi-tester-${{ github.run_number }}.apk" | head -3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vemi-android-apk
+          path: android/build/out/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish the APK on the website
+        run: |
+          mkdir -p ../public/download
+          cp "build/out/vemi-tester-${{ github.run_number }}.apk" ../public/download/vemi-tester.apk
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/download/vemi-tester.apk
+          if git diff --cached --quiet; then echo "APK unchanged"; exit 0; fi
+          git commit -m "Tester APK build ${{ github.run_number }}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

@@ -5,7 +5,7 @@ Vemi runs as a Node.js app (Next.js standalone server) under cPanel's **Setup No
 ## 1. Supabase (once)
 
 1. Create a Supabase project (region: closest to Kenya, e.g. Frankfurt or Mumbai).
-2. **SQL Editor**: paste all of `database/20261025090000_vemi_core.sql` (in the package, or `supabase/migrations/` in the repo) and click **Run**. Then do the same with `database/20261025120000_uber_features.sql`. Together they create every table, access rule, function, the private storage buckets and the list of towns and border posts. Always run them in date order.
+2. **SQL Editor**: paste all of `database/20261025090000_vemi_core.sql` (in the package, or `supabase/migrations/` in the repo) and click **Run**. Then do the same with `database/20261025120000_uber_features.sql`, then `database/20261028090000_border_papers.sql`, then `database/20261028120000_part_loads.sql`. Together they create every table, access rule, function, the private storage buckets and the list of towns and border posts. Always run them in date order.
 3. **Authentication > URL Configuration**: Site URL `https://vemi.ivulatechnologies.com`; add `https://vemi.ivulatechnologies.com/auth/callback` to Redirect URLs.
 4. **Authentication > Emails**: optional but recommended, use Resend SMTP so confirmation emails come from your domain.
 5. **Project Settings > API**: copy the Project URL, the publishable key and the secret key.
@@ -65,6 +65,27 @@ Prices and fees (commission, surge, stop fee, waiting time, cancellation fee, ca
 4. As the carrier, assign the truck and driver, then open the driver link on a phone and tap through to Delivered with a photo.
 5. Confirm delivery as the shipper. Admin > Payouts shows the payout; download the bulk CSV, then mark it paid.
 
+## Hosting on Vercel instead of cPanel
+
+The same code runs on Vercel with no changes. Steps 1 (Supabase), 3 (M-Pesa) and 6 (optional switches) stay the same; Vercel replaces steps 2, 4 and most of 5.
+
+1. The Vercel project `vemi-logistics` is already linked to this repository, and every push to `main` deploys to production.
+2. **Project > Settings > Environment Variables**: add every variable from `.env.example` for **Production** (and Preview if you want previews to work). `NEXT_PUBLIC_SITE_URL` is the address people use, for example `https://vemi-logistics.vercel.app` until a domain is added. Then **Redeploy** so the `NEXT_PUBLIC_*` values are built in.
+3. In Supabase **Authentication > URL Configuration**, use the Vercel address as the Site URL and add `<address>/auth/callback` to the Redirect URLs.
+4. **Daily job**: `vercel.json` runs `/api/cron/daily` every day at 06:00 Kenya time. Vercel sends `CRON_SECRET` by itself, so just set that variable.
+5. **Every-15-minutes job**: Vercel's free (Hobby) plan only runs crons once a day. Use a free scheduler such as cron-job.org: URL `<address>/api/cron/frequent`, every 15 minutes, request header `Authorization: Bearer YOUR_CRON_SECRET`. On Vercel Pro you can add it to `vercel.json` instead with schedule `*/15 * * * *`.
+6. **Custom domain** (optional): Project > Settings > Domains, add `vemi.ivulatechnologies.com`, then add the CNAME record Vercel shows in cPanel **Zone Editor**. Update `NEXT_PUBLIC_SITE_URL`, the Supabase URLs and the M-Pesa callback, then redeploy.
+7. **Uploads**: Vercel accepts at most 4.5 MB per request, so the app shrinks phone photos in the browser and limits PDFs to 4 MB when it runs on Vercel.
+8. `vercel.json` pins the functions to Frankfurt (`fra1`). If your Supabase project is in another region, change it to the nearest Vercel region so pages stay fast.
+
+Vercel's Hobby plan is meant for personal, non-commercial projects. It is fine while you test and onboard the first carriers; move to Pro ($20 a month) once Vemi takes real payments.
+
 ## Updating
 
-Upload the new zip, Extract over the old files, Restart the app. If a release adds a file under `database/`, run it in the Supabase SQL Editor first.
+cPanel: upload the new zip, Extract over the old files, Restart the app. Vercel: merging to `main` deploys by itself. If a release adds a file under `database/`, run it in the Supabase SQL Editor first.
+
+## Tester phone app (Android)
+
+`android/` builds a Trusted Web Activity that opens https://vemi-logistics.vercel.app full screen. The **Build Android Tester App** workflow signs it with the test-only key in `android/tester-key/` and commits it to `public/download/vemi-tester.apk`, so testers install it from https://vemi-logistics.vercel.app/download/vemi-tester.apk. iPhone testers use Safari → Share → Add to Home Screen.
+
+For testing, run `supabase/seed/tester-accounts.sql` after the migrations. It creates three tester accounts with the password `VemiTest#2026` (shipper, carrier and admin) and three sample loads. Delete those accounts before the real launch.

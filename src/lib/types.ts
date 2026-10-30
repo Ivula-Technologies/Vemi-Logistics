@@ -38,6 +38,7 @@ export type Load = {
   status: LoadStatus; created_at: string; updated_at: string;
   instant_book: boolean; pickup_window: PickupWindow; origin_lat: number | null; origin_lng: number | null; destination_lat: number | null; destination_lng: number | null;
   favourites_until: string | null; surge_bps: number; stop_count: number; declared_value: number | null; insure: boolean; require_codes: boolean; copied_from: string | null;
+  part_load: boolean;
 };
 
 export type StopContact = { seq: number; name: string | null; phone: string | null };
@@ -74,6 +75,7 @@ export type Payout = { id: string; trip_id: string; carrier_id: string; amount: 
 export type WalletEntry = { id: number; account_id: string; amount: number; kind: string; reason: string; trip_id: string | null; created_at: string };
 export type Refund = { id: string; account_id: string; amount: number; phone: string; status: "queued" | "sending" | "paid" | "cancelled"; reference: string | null; created_at: string; paid_at: string | null };
 export type PromoCode = { code: string; description: string | null; kind: "percent" | "amount"; value: number; max_discount_kes: number | null; max_uses: number | null; uses: number; first_trip_only: boolean; min_price_kes: number; expires_at: string | null; active: boolean; created_at: string };
+export type TripDocument = { id: string; trip_id: string; kind: string; reference: string | null; path: string | null; added_as: "shipper" | "carrier" | "driver" | "admin"; created_at: string };
 export type CarrierScore = { carrier_id: string; completed: number; on_time_pct: number | null; cancellations: number; compliments: string[] };
 
 export type PlatformSettings = {

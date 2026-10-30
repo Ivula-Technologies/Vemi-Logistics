@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Clock, Navigation, Phone } from "lucide-react";
+import { AlertTriangle, Clock, FileText, Navigation, Phone } from "lucide-react";
 import { VemiMark } from "@/components/brand";
 import { AutoRefresh } from "@/components/app/auto-refresh";
-import { DriverTrip, StopDoneButton } from "@/components/trips/driver-trip";
+import { DriverPaperForm, DriverTrip, StopDoneButton } from "@/components/trips/driver-trip";
 import { CallButton, SosButton, TripChat } from "@/components/trips/trip-tools";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { placeMap } from "@/lib/places";
@@ -11,7 +11,7 @@ import { tripEta } from "@/lib/trip-view";
 import { formatDuration } from "@/lib/eta";
 import { driverText } from "@/lib/driver-i18n";
 import { voiceConfigured } from "@/lib/voice";
-import { CARGO_TYPES, LIVE_STATUSES, nextSteps } from "@/lib/trips";
+import { BORDER_PAPERS, BORDER_PAPER_KINDS, CARGO_TYPES, LIVE_STATUSES, missingPapers, nextSteps, type BorderPaperKind } from "@/lib/trips";
 import { TRUCK_TYPES } from "@/lib/pricing";
 import { displayPhone } from "@/lib/phone";
 import { formatDate, formatDateTime } from "@/lib/utils";
@@ -29,7 +29,7 @@ export default async function DriverPage({ params }: { params: Promise<{ token: 
   const admin = createAdminClient();
   const { data: trip } = await admin.from("trips").select("id, ref, status, pod_path, load_id, truck_id, driver_id, carrier_id").eq("driver_token", token).maybeSingle();
   if (!trip) notFound();
-  const [{ data: loadRow }, { data: contacts }, { data: driver }, { data: truck }, { data: carrier }, { data: stops }, { data: events }, { data: locations }, { data: messages }, places] = await Promise.all([
+  const [{ data: loadRow }, { data: contacts }, { data: driver }, { data: truck }, { data: carrier }, { data: stops }, { data: events }, { data: locations }, { data: messages }, { data: papers }, places] = await Promise.all([
     admin.from("loads").select(LOAD_FIELDS).eq("id", trip.load_id).single(),
     admin.from("load_contacts").select("*").eq("load_id", trip.load_id).maybeSingle(),
     trip.driver_id ? admin.from("drivers").select("full_name, language").eq("id", trip.driver_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -39,6 +39,7 @@ export default async function DriverPage({ params }: { params: Promise<{ token: 
     admin.from("trip_events").select("status").eq("trip_id", trip.id),
     admin.from("trip_locations").select("lat, lng, recorded_at").eq("trip_id", trip.id).order("recorded_at", { ascending: false }).limit(1),
     admin.from("messages").select("id, trip_id, sender, body, to_support, created_at").eq("trip_id", trip.id).order("created_at").limit(200),
+    admin.from("trip_documents").select("id, kind, reference, path").eq("trip_id", trip.id).order("created_at"),
     placeMap(),
   ]);
   if (!loadRow) notFound();
@@ -95,6 +96,17 @@ export default async function DriverPage({ params }: { params: Promise<{ token: 
 
     {!done || trip.status === "delivered" ? <DriverTrip token={token} status={trip.status} steps={paid ? nextSteps(trip.status, load.border_crossings > 0) : []} hasPod={Boolean(trip.pod_path)} lang={lang} requireCodes={load.require_codes} /> : <p className="mt-6 text-center text-sm text-muted-foreground">{t.finished}</p>}
 
+    {paid && (load.border_crossings > 0 || (papers ?? []).length) ? <section className="mt-6 rounded-xl border bg-card p-4 text-sm">
+      <h2 className="flex items-center gap-2 font-semibold"><FileText className="h-4 w-4" />{t.papers}</h2>
+      <p className="mt-1 text-xs text-muted-foreground">{t.papersHint}</p>
+      {missingPapers((papers ?? []).map((p) => p.kind)).length ? <p className="mt-2 flex items-start gap-2 rounded-md bg-amber-500/15 px-3 py-2"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{t.papersMissing}{missingPapers((papers ?? []).map((p) => p.kind)).map((k) => BORDER_PAPERS[k][lang]).join(", ")}</p> : null}
+      {(papers ?? []).length ? <ul className="mt-3 space-y-2">{(papers ?? []).map((p) => <li key={p.id} className="rounded-md border p-3">
+        <p className="font-medium">{BORDER_PAPERS[p.kind as BorderPaperKind]?.[lang] ?? p.kind}</p>
+        {p.reference ? <p className="mt-1 font-mono text-base">{p.reference}</p> : null}
+        {p.path ? <a href={`/api/driver/${token}/paper/${p.id}`} target="_blank" rel="noreferrer" className="mt-1 inline-block font-semibold text-primary">{t.paperOpen}</a> : null}
+      </li>)}</ul> : <p className="mt-3 text-muted-foreground">{t.papersNone}</p>}
+      {!done || trip.status === "delivered" ? <DriverPaperForm token={token} lang={lang} kinds={BORDER_PAPER_KINDS.map((k) => ({ value: k, label: BORDER_PAPERS[k][lang] }))} /> : null}
+    </section> : null}
     {voice && paid && !done ? <section className="mt-5 flex flex-wrap gap-2">
       <CallButton access={access} to="carrier" label={`${t.callVemi}: ${carrier?.business_name ?? "boss"}`} ringing={t.callRinging} />
     </section> : null}

@@ -74,6 +74,7 @@ export const loadSchema = z.object({
   instantBook: checkbox,
   requireCodes: checkbox,
   insure: checkbox,
+  partLoad: checkbox,
   declaredValue: optionalWholeKes(1000, 100_000_000, "Enter the value of the goods in KES (at least 1,000)."),
   favouritesHours: z.coerce.number().int().refine((value) => [0, 1, 3, 6, 12].includes(value)).catch(0),
   copiedFrom: z.string().uuid().nullable().catch(null),
@@ -83,7 +84,7 @@ export const loadSchema = z.object({
   .refine((value) => !value.insure || value.declaredValue !== null, { path: ["declaredValue"], message: "Enter the value of the goods to add cargo cover." });
 
 export const LOAD_FIELDS = ["originId", "originDetail", "destinationId", "destinationDetail", "pickupDate", "cargoType", "cargoDescription", "weightTonnes", "truckType", "price", "notes",
-  "pickupName", "pickupPhone", "dropoffName", "dropoffPhone", "pickupWindow", "originLat", "originLng", "destinationLat", "destinationLng", "instantBook", "requireCodes", "insure",
+  "pickupName", "pickupPhone", "dropoffName", "dropoffPhone", "pickupWindow", "originLat", "originLng", "destinationLat", "destinationLng", "instantBook", "requireCodes", "insure", "partLoad",
   "declaredValue", "favouritesHours", "copiedFrom", "savePickupAs", "saveDropoffAs"] as const;
 
 export const MAX_STOPS = 5;
