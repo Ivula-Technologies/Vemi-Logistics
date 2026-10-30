@@ -83,3 +83,9 @@ Vercel's Hobby plan is meant for personal, non-commercial projects. It is fine w
 ## Updating
 
 cPanel: upload the new zip, Extract over the old files, Restart the app. Vercel: merging to `main` deploys by itself. If a release adds a file under `database/`, run it in the Supabase SQL Editor first.
+
+## Tester phone app (Android)
+
+`android/` builds a Trusted Web Activity that opens https://vemi-logistics.vercel.app full screen. The **Build Android Tester App** workflow signs it with the test-only key in `android/tester-key/` and commits it to `public/download/vemi-tester.apk`, so testers install it from https://vemi-logistics.vercel.app/download/vemi-tester.apk. iPhone testers use Safari → Share → Add to Home Screen.
+
+For testing, run `supabase/seed/tester-accounts.sql` after the migrations. It creates three tester accounts with the password `VemiTest#2026` (shipper, carrier and admin) and three sample loads. Delete those accounts before the real launch.
