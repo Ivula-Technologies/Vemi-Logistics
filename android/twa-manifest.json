@@ -1,0 +1,41 @@
+{
+  "publicDir": "../public",
+  "packageId": "com.ivulatechnologies.vemi",
+  "host": "vemi-logistics.vercel.app",
+  "name": "Vemi Logistics",
+  "launcherName": "Vemi",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#151a24",
+  "themeColorDark": "#151a24",
+  "navigationColor": "#151a24",
+  "navigationColorDark": "#151a24",
+  "navigationDividerColor": "#151a24",
+  "navigationDividerColorDark": "#151a24",
+  "backgroundColor": "#151a24",
+  "enableNotifications": true,
+  "startUrl": "/home",
+  "iconUrl": "https://vemi-logistics.vercel.app/icons/icon-512.png",
+  "maskableIconUrl": "https://vemi-logistics.vercel.app/icons/maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "tester-key/vemi-tester.p12",
+    "alias": "tester"
+  },
+  "appVersionCode": 1,
+  "appVersion": "0.1.0",
+  "shortcuts": [
+    { "name": "Post a load", "shortName": "Post a load", "url": "https://vemi-logistics.vercel.app/loads/new", "chosenIconUrl": "https://vemi-logistics.vercel.app/icons/icon-192.png" },
+    { "name": "Find loads", "shortName": "Find loads", "url": "https://vemi-logistics.vercel.app/board", "chosenIconUrl": "https://vemi-logistics.vercel.app/icons/icon-192.png" },
+    { "name": "My trips", "shortName": "My trips", "url": "https://vemi-logistics.vercel.app/trips", "chosenIconUrl": "https://vemi-logistics.vercel.app/icons/icon-192.png" }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "fallbackType": "webview",
+  "features": {},
+  "alphaDependencies": { "enabled": false },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://vemi-logistics.vercel.app/",
+  "minSdkVersion": 24
+}

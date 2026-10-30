@@ -1,0 +1,6 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": { "namespace": "android_app", "package_name": "com.ivulatechnologies.vemi", "sha256_cert_fingerprints": ["0F:0A:3E:5C:D0:67:EA:CF:D4:82:53:DB:5F:03:DC:22:5C:33:B6:7A:88:77:BC:85:14:BA:1D:B6:D7:5C:8D:00"] }
+  }
+]
