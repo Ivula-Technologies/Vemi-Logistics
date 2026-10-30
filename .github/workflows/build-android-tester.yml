@@ -1,6 +1,7 @@
 name: Build Android Tester App
 
-# Builds the signed tester .apk (android/README.md). Runs when android/ changes, or by hand.
+# Builds the signed tester .apk (android/README.md). Runs when android/ changes, or by hand, and commits it to
+# public/download/vemi-tester.apk so testers download it from the website.
 on:
   workflow_dispatch:
   push:
@@ -12,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     defaults:
       run:
         working-directory: android
@@ -60,3 +61,15 @@ jobs:
           path: android/build/out/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish the APK on the website
+        run: |
+          mkdir -p ../public/download
+          cp "build/out/vemi-tester-${{ github.run_number }}.apk" ../public/download/vemi-tester.apk
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/download/vemi-tester.apk
+          if git diff --cached --quiet; then echo "APK unchanged"; exit 0; fi
+          git commit -m "Tester APK build ${{ github.run_number }}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

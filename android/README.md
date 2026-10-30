@@ -10,8 +10,9 @@ full screen. Every web deploy updates the app too, so testers only reinstall whe
 ## Build the tester APK
 
 The **Build Android Tester App** workflow builds a signed `.apk` on every push that touches this folder (or
-run it by hand from the Actions tab). Download the `vemi-android-apk` artifact, unzip it and send the `.apk`
-to testers. They tap it on their phone and allow "install unknown apps" once.
+run it by hand from the Actions tab). It commits the APK to `public/download/vemi-tester.apk`, so once deployed
+testers download it from https://vemi-logistics.vercel.app/download/vemi-tester.apk. The `vemi-android-apk`
+artifact on the run has the same file. Testers tap it on their phone and allow "install unknown apps" once.
 
 ## The tester key
 
