@@ -76,6 +76,7 @@ switches itself on when the setting is added in cPanel (see DEPLOY.md).
 - **Shipper reports**: spend by month, on-time %, top lanes, CSV export.
 - **Busy lanes** for carriers: where loads are waiting and what they pay per km.
 - **Return loads**: carriers see loads leaving the town their truck is heading to.
+- **Part loads (Uber Freight LTL)**: a shipper with a few tonnes ticks "Share a truck" and pays for their share (at least a quarter of the truck, plus 20%). Carriers see the space left on the trip page with matching part loads going the same way, hear first when one is posted, and Vemi refuses to assign more weight than the truck carries.
 - Ops screens for promo codes, business credit, refunds and wallet cash-outs, insured trips and SOS alerts.
 
 ## Not copied on purpose

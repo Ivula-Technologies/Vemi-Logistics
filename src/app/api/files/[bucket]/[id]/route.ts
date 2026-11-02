@@ -9,6 +9,7 @@ import { signedUrl } from "@/lib/storage";
  *   /api/files/dispute/<trip id>?i=0     damage photos on a dispute (the same people)
  *   /api/files/truck/<truck id>          truck photo (the carrier, admins, and shippers of its trips)
  *   /api/files/driver/<driver id>        driver photo (the carrier, admins, and shippers of live trips)
+ *   /api/files/paper/<trip document id>  border papers (the trip's shipper, carrier and admins)
  */
 export async function GET(request: Request, { params }: { params: Promise<{ bucket: string; id: string }> }) {
   const { bucket, id } = await params;
@@ -27,6 +28,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ buck
     const { data } = await supabase.from("trips").select("dispute_files").eq("id", id).maybeSingle();
     const path = data?.dispute_files?.[index];
     if (path) url = await signedUrl("pod", path);
+  } else if (bucket === "paper") {
+    const { data } = await supabase.from("trip_documents").select("path").eq("id", id).maybeSingle();
+    if (data?.path) url = await signedUrl("trip-docs", data.path);
   } else if (bucket === "truck" || bucket === "driver") {
     const { data } = await supabase.from(bucket === "truck" ? "trucks" : "drivers").select("photo_path").eq("id", id).maybeSingle();
     if (data?.photo_path) url = await signedUrl("photos", data.photo_path);

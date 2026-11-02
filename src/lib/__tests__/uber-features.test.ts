@@ -1,8 +1,10 @@
+import { canSharePart, partLoadPrice, spaceLeft } from "@/lib/pricing";
+import { canRideAlong } from "@/lib/part-loads";
 import { describe, expect, it } from "vitest";
 import { eta, formatDuration, travelHours } from "@/lib/eta";
 import { quoteRoute, withSurcharge, type Place } from "@/lib/pricing";
 import { driverText, stepLabel } from "@/lib/driver-i18n";
-import { nextSteps } from "@/lib/trips";
+import { BORDER_PAPERS, BORDER_PAPER_KINDS, borderHours, missingPapers, nextSteps } from "@/lib/trips";
 
 const mombasa: Place = { id: "mombasa", name: "Mombasa", country: "KE", lat: -4.0435, lng: 39.6682 };
 const nairobi: Place = { id: "nairobi", name: "Nairobi", country: "KE", lat: -1.2921, lng: 36.8219 };
@@ -54,5 +56,62 @@ describe("driver page", () => {
     expect(nextSteps("at_pickup", false)[0].needsCode).toBe("pickup");
     expect(nextSteps("at_dropoff", false)[0].needsCode).toBe("delivery");
     expect(nextSteps("loaded", false)[0].needsCode).toBeUndefined();
+  });
+});
+
+describe("border papers", () => {
+  it("lists the required papers still missing", () => {
+    expect(missingPapers([])).toEqual(["customs_entry", "commercial_invoice", "packing_list"]);
+    expect(missingPapers(["customs_entry", "rects_seal", "packing_list"])).toEqual(["commercial_invoice"]);
+    expect(missingPapers(["customs_entry", "commercial_invoice", "packing_list"])).toEqual([]);
+  });
+  it("measures time at each border", () => {
+    const events = [
+      { status: "in_transit", created_at: "2026-10-28T06:00:00Z" },
+      { status: "at_border", created_at: "2026-10-28T10:00:00Z" },
+      { status: "in_transit", created_at: "2026-10-28T19:30:00Z" },
+      { status: "at_border", created_at: "2026-10-29T08:00:00Z" },
+      { status: "delivered", created_at: "2026-10-29T10:00:00Z" },
+    ];
+    expect(borderHours(events.reverse())).toEqual([9.5, 2]);
+    expect(borderHours([{ status: "at_border", created_at: "2026-10-28T10:00:00Z" }])).toEqual([]);
+  });
+  it("has Kiswahili for every paper", () => {
+    for (const k of BORDER_PAPER_KINDS) expect(BORDER_PAPERS[k].sw.length).toBeGreaterThan(3);
+  });
+});
+
+describe("part loads", () => {
+  const places = new Map([
+    ["mombasa", { lat: -4.04, lng: 39.67 }], ["mariakani", { lat: -3.86, lng: 39.47 }],
+    ["nairobi", { lat: -1.29, lng: 36.82 }], ["thika", { lat: -1.03, lng: 37.07 }], ["kisumu", { lat: -0.09, lng: 34.77 }],
+  ]);
+  const mine = { origin_id: "mombasa", destination_id: "nairobi", pickup_date: "2026-11-02", weight_tonnes: 8, truck_type: "trailer" as const };
+
+  it("only offers sharing on lorries and trailers, up to 60% of the truck", () => {
+    expect(canSharePart(8, "trailer")).toBe(true);
+    expect(canSharePart(17, "trailer")).toBe(false);
+    expect(canSharePart(2, "tanker")).toBe(false);
+    expect(canSharePart(1, "canter")).toBe(false);
+  });
+
+  it("prices a share of the truck with a 20% premium and a quarter-truck floor", () => {
+    expect(partLoadPrice(100_000, 7, "trailer")).toBe(30_000);
+    expect(partLoadPrice(100_000, 14, "trailer")).toBe(60_000);
+    expect(partLoadPrice(5_000, 1, "lorry_7t")).toBe(3_000);
+  });
+
+  it("works out the space left", () => {
+    expect(spaceLeft(28, [8, 6.5])).toBe(13.5);
+    expect(spaceLeft(10, [8, 6])).toBe(0);
+  });
+
+  it("matches loads going the same way within a day that fit", () => {
+    expect(canRideAlong(mine, { ...mine, origin_id: "mariakani", destination_id: "thika", weight_tonnes: 6, pickup_date: "2026-11-03" }, places, 20, 28)).toBe(true);
+    expect(canRideAlong(mine, { ...mine, weight_tonnes: 21 }, places, 20, 28)).toBe(false);
+    expect(canRideAlong(mine, { ...mine, pickup_date: "2026-11-05" }, places, 20, 28)).toBe(false);
+    expect(canRideAlong(mine, { ...mine, destination_id: "kisumu" }, places, 20, 28)).toBe(false);
+    expect(canRideAlong(mine, { ...mine, truck_type: "reefer" }, places, 20, 28)).toBe(false);
+    expect(canRideAlong(mine, { ...mine, truck_type: "lorry_10t", weight_tonnes: 4 }, places, 20, 28)).toBe(true);
   });
 });

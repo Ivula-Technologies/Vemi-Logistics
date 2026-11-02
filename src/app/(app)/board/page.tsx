@@ -13,7 +13,7 @@ import type { Load } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Find loads" };
 
-export default async function BoardPage({ searchParams }: { searchParams: Promise<{ truck?: string; from?: string; to?: string; all?: string; instant?: string }> }) {
+export default async function BoardPage({ searchParams }: { searchParams: Promise<{ truck?: string; from?: string; to?: string; all?: string; instant?: string; part?: string }> }) {
   const [{ user, carrier }, query] = await Promise.all([requireRole("carrier"), searchParams]);
   if (carrier?.status !== "verified") {
     return <div><PageHeader title="Find loads" /><EmptyState icon={<ShieldAlert className="h-5 w-5" />} title="You&apos;ll see loads once you&apos;re verified" description="Add your trucks, a driver and your documents. Vemi checks them within one working day." action={<Button asChild><Link href="/home">See what&apos;s left to do</Link></Button>} /></div>;
@@ -30,6 +30,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
   const truck = query.truck && query.truck in TRUCK_TYPES ? query.truck : query.all ? "" : "";
   let request = supabase.from("loads").select("*").eq("status", "open").order("pickup_date").limit(100);
   if (truck) request = request.eq("truck_type", truck);
+  if (query.part) request = request.eq("part_load", true);
   if (query.instant) request = request.eq("instant_book", true);
   else if (!query.all && myTypes.length) request = request.in("truck_type", myTypes);
   const { data } = await request;
@@ -49,6 +50,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
       <select name="to" defaultValue={query.to ?? ""} className={selectClass} aria-label="To country"><option value="">To anywhere</option>{countries.map(([code, name]) => <option key={code} value={code}>To {name}</option>)}</select>
       <Button type="submit" variant="outline"><Search className="mr-2 h-4 w-4" />Filter</Button>
       <label className="col-span-2 flex items-center gap-2 text-sm sm:col-span-4"><input type="checkbox" name="instant" value="1" defaultChecked={Boolean(query.instant)} className="accent-[hsl(var(--primary))]" />Only loads I can book now at the shipper&apos;s price</label>
+      <label className="col-span-2 flex items-center gap-2 text-sm sm:col-span-4"><input type="checkbox" name="part" value="1" defaultChecked={Boolean(query.part)} className="accent-[hsl(var(--primary))]" />Only part loads (fill the space left on a truck)</label>
     </form>
     {busy.length ? <section className="mb-6 rounded-lg border bg-card p-4">
       <h2 className="flex items-center gap-2 text-sm font-semibold"><Flame className="h-4 w-4 text-primary" />Busy lanes this week</h2>

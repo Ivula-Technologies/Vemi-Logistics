@@ -52,7 +52,7 @@ export default async function BoardLoadPage({ params, searchParams }: { params: 
           {stops.map((stop) => <Fragment key={stop.id}><dt className="text-muted-foreground">Stop {stop.seq}</dt><dd>{stop.kind === "pickup" ? "Pick up at " : "Drop at "}{stop.detail || places.get(stop.place_id)?.name}</dd></Fragment>)}
           <dt className="text-muted-foreground">Drop-off area</dt><dd>{l.destination_detail || destination?.name}</dd>
           <dt className="text-muted-foreground">Goods</dt><dd>{CARGO_TYPES[l.cargo_type]}: {l.cargo_description}</dd>
-          <dt className="text-muted-foreground">Weight</dt><dd>{Number(l.weight_tonnes)} t</dd>
+          <dt className="text-muted-foreground">Weight</dt><dd>{Number(l.weight_tonnes)} t{l.part_load ? " · part load: fill the rest of the truck with other loads going the same way" : ""}</dd>
           <dt className="text-muted-foreground">Truck</dt><dd>{TRUCK_TYPES[l.truck_type]?.label}</dd>
           <dt className="text-muted-foreground">Distance</dt><dd>about {l.distance_km.toLocaleString()} km{l.border_crossings ? `, ${l.border_crossings} border crossing${l.border_crossings > 1 ? "s" : ""}` : ""}</dd>
           {l.notes ? <><dt className="text-muted-foreground">Notes</dt><dd>{l.notes}</dd></> : null}

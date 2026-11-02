@@ -1,6 +1,6 @@
 "use client";
 import { useActionState, useEffect, useMemo, useState } from "react";
-import { Info, Plus, ShieldCheck, Trash2, Truck, Zap } from "lucide-react";
+import { Info, Plus, ShieldCheck, Trash2, Truck, Users, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Field, FormMessage, selectClass } from "@/components/app/field";
 import { PlaceSelect } from "@/components/loads/place-select";
 import { MapPicker } from "@/components/loads/map-picker";
 import { postLoad } from "@/app/actions/loads";
-import { quoteRoute, suggestTruckType, withSurcharge, TRUCK_TYPES, TRUCK_TYPE_KEYS, type RoutePoint, type TruckType } from "@/lib/pricing";
+import { canSharePart, partLoadPrice, quoteRoute, suggestTruckType, withSurcharge, PART_LOAD_MAX_SHARE, TRUCK_TYPES, TRUCK_TYPE_KEYS, type RoutePoint, type TruckType } from "@/lib/pricing";
 import { CARGO_TYPES, PICKUP_WINDOWS } from "@/lib/trips";
 import { MAX_STOPS } from "@/lib/validations";
 import { displayPhone } from "@/lib/phone";
@@ -55,6 +55,7 @@ export function LoadForm({ places, today, defaultPhone, saved, hasFavourites, se
   const [price, setPrice] = useState(c ? String(c.price) : "");
   const [priceTouched, setPriceTouched] = useState(Boolean(c));
   const [insure, setInsure] = useState(c?.insure ?? false);
+  const [partLoad, setPartLoad] = useState(c?.part_load ?? false);
   const [declared, setDeclared] = useState(c?.declared_value ? String(c.declared_value) : "");
   const [lane, setLane] = useState<(LaneSurge & { trucks_near: number }) | null>(null);
   const errors = state.fieldErrors ?? {};
@@ -77,8 +78,13 @@ export function LoadForm({ places, today, defaultPhone, saved, hasFavourites, se
     const points: RoutePoint[] = [{ ...origin, pin: originPin }, ...middle, { ...destination, pin: destinationPin }];
     const route = quoteRoute(points, truckType, settings.stopFee);
     const surge = (lane?.urgent_bps ?? 0) + (lane?.busy_bps ?? 0);
-    return { ...route, base: route.price, surge, price: withSurcharge(route.price, surge) };
-  }, [origin, destination, originPin, destinationPin, stops, byId, truckType, settings.stopFee, lane]);
+    const whole = withSurcharge(route.price, surge);
+    const tonnes = Number.parseFloat(weight);
+    const shared = partLoad && canSharePart(tonnes, truckType);
+    return { ...route, base: route.price, surge, whole, shared, price: shared ? partLoadPrice(whole, tonnes, truckType) : whole };
+  }, [origin, destination, originPin, destinationPin, stops, byId, truckType, settings.stopFee, lane, partLoad, weight]);
+  const tonnes = Number.parseFloat(weight);
+  const shareable = canSharePart(tonnes, truckType);
 
   // Until the shipper types their own price, the offer follows the guide price.
   const shownPrice = priceTouched ? price : estimate ? String(estimate.price) : price;
@@ -143,6 +149,7 @@ export function LoadForm({ places, today, defaultPhone, saved, hasFavourites, se
         <Field label="What exactly, and how is it packed?" htmlFor="cargoDescription" error={errors.cargoDescription} className="sm:col-span-2"><Textarea id="cargoDescription" name="cargoDescription" rows={2} defaultValue={c?.cargo_description ?? ""} placeholder="e.g. 1,200 cartons of cooking oil on pallets, forklift at pickup" required /></Field>
         <Field label="Truck needed" htmlFor="truckType" error={errors.truckType} hint={`Carries about ${TRUCK_TYPES[truckType].tonnes} t.`}><select id="truckType" name="truckType" className={selectClass} value={truckType} onChange={(e) => { setTruckTouched(true); setTruckType(e.target.value as TruckType); }}>{TRUCK_TYPE_KEYS.map((key) => <option key={key} value={key}>{TRUCK_TYPES[key].label}</option>)}</select></Field>
       </div>
+      {shareable || partLoad ? <label className="flex items-start gap-3 rounded-md border p-3 text-sm"><input type="checkbox" name="partLoad" checked={partLoad && shareable} disabled={!shareable} onChange={(e) => { setPartLoad(e.target.checked); setPriceTouched(false); }} className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]" /><span><span className="flex items-center gap-1.5 font-semibold"><Users className="h-4 w-4 text-primary" />Share a truck (part load)</span><span className="text-muted-foreground">{shareable ? `Pay for your ${tonnes} t, not the whole ${TRUCK_TYPES[truckType].short.toLowerCase()}. Your goods ride with other shippers' goods going the same way, so allow up to a day more for pickup and delivery.` : `A shared ${TRUCK_TYPES[truckType].short.toLowerCase()} takes up to ${Math.floor(TRUCK_TYPES[truckType].tonnes * PART_LOAD_MAX_SHARE)} t. Choose a lorry or trailer, or book the whole truck.`}</span></span></label> : null}
       {origin && lane ? <p className="flex items-center gap-2 text-sm"><Truck className="h-4 w-4 text-primary" />{lane.trucks_near ? <span><strong>{lane.trucks_near}</strong> free {TRUCK_TYPES[truckType].short.toLowerCase()} truck{lane.trucks_near > 1 ? "s" : ""} near {origin.name} right now. They hear about your load first.</span> : <span>No {TRUCK_TYPES[truckType].short.toLowerCase()} marked free near {origin.name} yet. We alert every carrier with one.</span>}</p> : null}
     </section>
 
@@ -151,7 +158,7 @@ export function LoadForm({ places, today, defaultPhone, saved, hasFavourites, se
       {estimate ? <div className="flex gap-3 rounded-md bg-signal-soft p-3 text-sm">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <div className="space-y-1">
-          <p>Guide price <strong>{formatKes(estimate.price)}</strong> for about {estimate.distanceKm.toLocaleString()} km{estimate.crossings ? `, including ${estimate.crossings} border crossing${estimate.crossings > 1 ? "s" : ""}` : ""}{estimate.stops ? ` and ${estimate.stops} extra stop${estimate.stops > 1 ? "s" : ""}` : ""}.</p>
+          <p>Guide price <strong>{formatKes(estimate.price)}</strong>{estimate.shared ? <> for your share of the truck (a whole {TRUCK_TYPES[truckType].short.toLowerCase()} is {formatKes(estimate.whole)})</> : null} for about {estimate.distanceKm.toLocaleString()} km{estimate.crossings ? `, including ${estimate.crossings} border crossing${estimate.crossings > 1 ? "s" : ""}` : ""}{estimate.stops ? ` and ${estimate.stops} extra stop${estimate.stops > 1 ? "s" : ""}` : ""}.</p>
           {estimate.surge ? <p className="text-xs">Includes {(estimate.surge / 100).toFixed(0)}% for {[lane?.urgent_bps ? "a same-day or next-day pickup" : null, lane?.busy_bps ? `a busy lane (${lane.open_loads} load${lane.open_loads === 1 ? "" : "s"} waiting, ${lane.free_trucks} truck${lane.free_trucks === 1 ? "" : "s"} free)` : null].filter(Boolean).join(" and ")}. Base price {formatKes(estimate.base)}.</p> : null}
           <p className="text-xs text-muted-foreground">Offer more to get trucks faster; carriers can also counter-bid.</p>
         </div>

@@ -18,6 +18,7 @@ import { DOCUMENT_KINDS } from "@/lib/trips";
 import { displayPhone } from "@/lib/phone";
 import { eatToday, formatDate } from "@/lib/utils";
 import type { Driver, PlaceRow, Truck as TruckRow, TruckAvailability } from "@/lib/types";
+import { FileInput } from "@/components/app/file-input";
 
 export const metadata: Metadata = { title: "Fleet" };
 
@@ -85,7 +86,7 @@ export default async function FleetPage({ searchParams }: { searchParams: Promis
             <form action={uploadDocument} className="mt-2 grid gap-2 sm:grid-cols-[180px_160px_1fr_auto] sm:items-end"><input type="hidden" name="driverId" value={d.id} />
               <select name="kind" className={selectClass} aria-label="Document" defaultValue="driving_licence">{(["driving_licence", "good_conduct", "yellow_card"] as const).map((k) => <option key={k} value={k}>{DOCUMENT_KINDS[k]}</option>)}</select>
               <Input name="expiresOn" type="date" aria-label="Expiry date" />
-              <Input name="file" type="file" accept="image/*,application/pdf" capture="environment" required aria-label="File" />
+              <FileInput name="file" accept="image/*,application/pdf" capture="environment" required aria-label="File" />
               <SubmitButton size="sm" variant="outline" pendingLabel="…">Upload</SubmitButton>
             </form></details>
         </div>;
@@ -110,7 +111,7 @@ function AvailabilityForm({ truckId, places, today }: { truckId: string; places:
 
 function PhotoForm({ kind, id, has }: { kind: "truck" | "driver"; id: string; has: boolean }) {
   return <form action={uploadFleetPhoto} className="flex flex-wrap items-center gap-2 text-sm"><input type="hidden" name="kind" value={kind} /><input type="hidden" name="id" value={id} />
-    <Input name="file" type="file" accept="image/*" capture={kind === "truck" ? "environment" : "user"} required className="w-56" aria-label={kind === "truck" ? "Truck photo" : "Driver photo"} />
+    <FileInput name="file" accept="image/*" capture={kind === "truck" ? "environment" : "user"} required className="w-56" aria-label={kind === "truck" ? "Truck photo" : "Driver photo"} />
     <SubmitButton size="sm" variant="outline" pendingLabel="…"><Camera className="mr-1.5 h-4 w-4" />{has ? "Replace photo" : kind === "truck" ? "Add truck photo" : "Add driver photo"}</SubmitButton>
   </form>;
 }

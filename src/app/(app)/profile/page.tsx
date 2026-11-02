@@ -17,6 +17,7 @@ import { DOCUMENT_KINDS, REQUIRED_DOCUMENTS } from "@/lib/trips";
 import { formatDate, formatKes } from "@/lib/utils";
 import { percent } from "@/lib/commission";
 import type { CarrierPrivate, PlatformSettings } from "@/lib/types";
+import { FileInput } from "@/components/app/file-input";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -47,7 +48,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       </section>
       <section id="documents" className="scroll-mt-20 rounded-lg border bg-card p-5">
         <h2 className="flex items-center gap-2 font-semibold"><FileText className="h-5 w-5 text-primary" />Documents</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Clear photos or PDFs, up to 8 MB each. Only you and Vemi staff can open them.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Clear photos or PDFs (PDF scans up to 4 MB; photos are shrunk for you). Only you and Vemi staff can open them.</p>
         <ul className="mt-4 space-y-2 text-sm">{REQUIRED_DOCUMENTS.map((kind) => <li key={kind} className="flex items-center gap-2">{have.has(kind) ? <ToneBadge tone="success">Uploaded</ToneBadge> : <ToneBadge tone="warning">Needed</ToneBadge>}{DOCUMENT_KINDS[kind]}</li>)}</ul>
         {(docs ?? []).length ? <ul className="mt-4 divide-y rounded-md border text-sm">{(docs ?? []).map((d) => <li key={d.id} className="flex items-center justify-between gap-2 px-3 py-2">
           <a href={`/api/files/doc/${d.id}`} target="_blank" rel="noreferrer" className="min-w-0 truncate font-medium underline-offset-4 hover:underline">{DOCUMENT_KINDS[d.kind as keyof typeof DOCUMENT_KINDS]} · {d.file_name}{d.expires_on ? ` (expires ${formatDate(d.expires_on)})` : ""}</a>
@@ -56,7 +57,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         {carrier ? <form action={uploadDocument} className="mt-4 grid gap-3 sm:grid-cols-3">
           <Field label="Document" htmlFor="kind"><select id="kind" name="kind" className={selectClass} defaultValue={REQUIRED_DOCUMENTS.find((k) => !have.has(k)) ?? "other"}>{Object.entries(DOCUMENT_KINDS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}</select></Field>
           <Field label="Expiry date (if any)" htmlFor="expiresOn"><Input id="expiresOn" name="expiresOn" type="date" /></Field>
-          <Field label="File" htmlFor="file"><Input id="file" name="file" type="file" accept="image/*,application/pdf" capture="environment" required /></Field>
+          <Field label="File" htmlFor="file"><FileInput id="file" name="file" accept="image/*,application/pdf" capture="environment" required /></Field>
           <div className="sm:col-span-3"><SubmitButton pendingLabel="Uploading…">Upload</SubmitButton></div>
         </form> : <p className="mt-4 text-sm text-muted-foreground">Save your business details above first.</p>}
       </section>

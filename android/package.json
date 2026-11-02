@@ -1,0 +1,12 @@
+{
+  "name": "vemi-android-app",
+  "private": true,
+  "type": "module",
+  "description": "Builds the Vemi Android app (Trusted Web Activity). See android/README.md.",
+  "scripts": {
+    "project": "node build-project.mjs"
+  },
+  "dependencies": {
+    "@bubblewrap/core": "1.27.0"
+  }
+}

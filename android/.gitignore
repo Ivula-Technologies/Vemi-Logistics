@@ -1,0 +1,7 @@
+node_modules/
+build/
+*.jks
+*.keystore
+# The tester key is committed on purpose (see README); every other key stays out of git.
+*.p12
+!tester-key/vemi-tester.p12

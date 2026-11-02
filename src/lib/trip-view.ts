@@ -2,8 +2,8 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { placeMap } from "@/lib/places";
 import { eta } from "@/lib/eta";
-import { BEFORE_LOADING, PAYMENT_COLUMNS, TRIP_COLUMNS } from "@/lib/trips";
-import type { BusinessAccount, CarrierScore, Driver, Load, LoadContacts, LoadStop, Message, Payment, Payout, PlaceRow, PlatformSettings, Profile, Trip, TripCharge, TripEvent, TripLocation, Truck } from "@/lib/types";
+import { BEFORE_LOADING, PAYMENT_COLUMNS, TRIP_COLUMNS, TRIP_DOCUMENT_COLUMNS } from "@/lib/trips";
+import type { BusinessAccount, CarrierScore, Driver, Load, LoadContacts, LoadStop, Message, Payment, Payout, PlaceRow, PlatformSettings, Profile, Trip, TripCharge, TripDocument, TripEvent, TripLocation, Truck } from "@/lib/types";
 
 export type Viewer = "shipper" | "carrier" | "admin";
 
@@ -14,7 +14,7 @@ export type TripView = {
   carrier: { business_name: string; rating_avg: number | null; rating_count: number } | null;
   counterpart: Pick<Profile, "full_name" | "phone" | "company"> | null;
   truck: Truck | null; driver: Driver | null; myRating: { stars: number; tags: string[]; comment: string | null } | null;
-  charges: TripCharge[]; messages: Message[]; payments: Payment[]; payouts: Payout[];
+  charges: TripCharge[]; papers: TripDocument[]; messages: Message[]; payments: Payment[]; payouts: Payout[];
   settings: PlatformSettings | null; codes: { pickup: string; delivery: string } | null; shareToken: string | null; driverToken: string | null;
   wallet: number; business: BusinessAccount | null; favourite: boolean; score: CarrierScore | null;
   fleet: { trucks: Truck[]; drivers: Driver[] };
@@ -29,7 +29,7 @@ export async function loadTripView(id: string, userId: string, role: Profile["ro
   const trip = tripRow as unknown as Trip;
   const viewer: Viewer = role === "admin" ? "admin" : trip.carrier_id === userId ? "carrier" : "shipper";
 
-  const [{ data: load }, { data: contacts }, { data: stops }, { data: events }, { data: locations }, { data: carrier }, { data: counterpart }, { data: truck }, { data: driver }, { data: myRating }, { data: charges }, { data: messages }, { data: settings }, places] = await Promise.all([
+  const [{ data: load }, { data: contacts }, { data: stops }, { data: events }, { data: locations }, { data: carrier }, { data: counterpart }, { data: truck }, { data: driver }, { data: myRating }, { data: charges }, { data: messages }, { data: papers }, { data: settings }, places] = await Promise.all([
     supabase.from("loads").select("*").eq("id", trip.load_id).single(),
     supabase.from("load_contacts").select("*").eq("load_id", trip.load_id).maybeSingle(),
     supabase.from("load_stops").select("*").eq("load_id", trip.load_id).order("seq"),
@@ -42,6 +42,7 @@ export async function loadTripView(id: string, userId: string, role: Profile["ro
     supabase.from("ratings").select("stars, tags, comment").eq("trip_id", id).eq("rater_id", viewer === "carrier" ? userId : trip.shipper_id).maybeSingle(),
     supabase.from("trip_charges").select("*").eq("trip_id", id).order("created_at"),
     supabase.from("messages").select("*").eq("trip_id", id).order("created_at").limit(300),
+    supabase.from("trip_documents").select(TRIP_DOCUMENT_COLUMNS).eq("trip_id", id).order("created_at"),
     supabase.from("platform_settings").select("*").single(),
     placeMap(),
   ]);
@@ -51,7 +52,7 @@ export async function loadTripView(id: string, userId: string, role: Profile["ro
     trip, load: l, viewer, userId, places, origin: places.get(l.origin_id)!, destination: places.get(l.destination_id)!,
     contacts: contacts as LoadContacts | null, stops: (stops ?? []) as LoadStop[], events: (events ?? []) as TripEvent[], locations: (locations ?? []) as TripLocation[],
     carrier, counterpart, truck: truck as Truck | null, driver: driver as Driver | null, myRating: viewer === "admin" ? null : myRating,
-    charges: (charges ?? []) as TripCharge[], messages: (messages ?? []) as Message[], payments: [], payouts: [],
+    charges: (charges ?? []) as TripCharge[], papers: (papers ?? []) as TripDocument[], messages: (messages ?? []) as Message[], payments: [], payouts: [],
     settings: settings as PlatformSettings | null, codes: null, shareToken: null, driverToken: null, wallet: 0, business: null, favourite: false, score: null,
     fleet: { trucks: [], drivers: [] }, eta: null,
   };

@@ -120,6 +120,29 @@ export function suggestTruckType(weightTonnes: number): TruckType {
   return order.find((key) => TRUCK_TYPES[key].tonnes >= weightTonnes) ?? "trailer";
 }
 
+/** Trucks that can carry goods for several shippers at once (closed or flatbed lorries, not tankers or tippers). */
+export const SHAREABLE_TRUCKS: TruckType[] = ["lorry_7t", "lorry_10t", "lorry_14t", "trailer", "reefer"];
+/** A part load fills at most this share of the truck; more than that and it should book a whole truck. */
+export const PART_LOAD_MAX_SHARE = 0.6;
+/** Each shipper pays for at least a quarter of the truck, plus 20% for the extra pickups and waiting. */
+export const PART_LOAD_MIN_SHARE = 0.25;
+export const PART_LOAD_PREMIUM = 1.2;
+
+export function canSharePart(weightTonnes: number, truckType: TruckType) {
+  return SHAREABLE_TRUCKS.includes(truckType) && weightTonnes > 0 && weightTonnes <= TRUCK_TYPES[truckType].tonnes * PART_LOAD_MAX_SHARE;
+}
+
+/** The guide price for a part load: the shipper's share of a whole-truck price, never below KES 3,000. */
+export function partLoadPrice(wholeTruckPrice: number, weightTonnes: number, truckType: TruckType) {
+  const share = Math.max(PART_LOAD_MIN_SHARE, weightTonnes / TRUCK_TYPES[truckType].tonnes);
+  return Math.max(3000, Math.round((wholeTruckPrice * share * PART_LOAD_PREMIUM) / 500) * 500);
+}
+
+/** Space left on a truck after the loads it already carries, in tonnes (never negative). */
+export function spaceLeft(capacityTonnes: number, carried: number[]) {
+  return Math.max(0, Math.round((capacityTonnes - carried.reduce((sum, t) => sum + Number(t), 0)) * 10) / 10);
+}
+
 export const COUNTRY_NAMES: Record<string, string> = {
   KE: "Kenya", UG: "Uganda", TZ: "Tanzania", RW: "Rwanda", BI: "Burundi", SS: "South Sudan", CD: "DR Congo", ET: "Ethiopia", ZM: "Zambia",
 };

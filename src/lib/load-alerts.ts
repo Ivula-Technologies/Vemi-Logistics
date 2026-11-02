@@ -1,7 +1,8 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notify";
-import { straightLineKm } from "@/lib/pricing";
+import { TRUCK_TYPES, straightLineKm, type TruckType } from "@/lib/pricing";
+import { canRideAlong } from "@/lib/part-loads";
 import { formatKes } from "@/lib/utils";
 
 /** How close a free truck must be to the pickup to get the "near you" SMS first. */
@@ -16,7 +17,7 @@ export async function announceLoad(loadId: string, options: { favourites?: boole
   if (!process.env.SUPABASE_SECRET_KEY) return;
   try {
     const admin = createAdminClient();
-    const { data: load } = await admin.from("loads").select("id, ref, shipper_id, origin_id, destination_id, truck_type, price, pickup_date, instant_book, status").eq("id", loadId).single();
+    const { data: load } = await admin.from("loads").select("id, ref, shipper_id, origin_id, destination_id, truck_type, price, pickup_date, instant_book, status, part_load, weight_tonnes").eq("id", loadId).single();
     if (!load || load.status !== "open") return;
     const { data: places } = await admin.from("places").select("id, name, lat, lng").in("id", [load.origin_id, load.destination_id]);
     const origin = places?.find((p) => p.id === load.origin_id);
@@ -32,6 +33,22 @@ export async function announceLoad(loadId: string, options: { favourites?: boole
       return;
     }
 
+    // A part load: carriers already taking a part load the same way hear first, so trucks leave full.
+    const alongside = new Set<string>();
+    if (load.part_load) {
+      const { data: sharing } = await admin.from("trips").select("carrier_id, trucks(capacity_tonnes), loads!inner(origin_id, destination_id, pickup_date, weight_tonnes, truck_type, part_load)")
+        .eq("loads.part_load", true).in("status", ["awaiting_payment", "scheduled", "to_pickup"]).gte("loads.pickup_date", shiftDays(load.pickup_date, -1)).lte("loads.pickup_date", shiftDays(load.pickup_date, 1)).limit(300);
+      const { data: all } = await admin.from("places").select("id, lat, lng");
+      const at = new Map((all ?? []).map((p) => [p.id as string, p]));
+      type Row = { carrier_id: string; trucks: { capacity_tonnes: number } | null; loads: { origin_id: string; destination_id: string; pickup_date: string; weight_tonnes: number; truck_type: TruckType } };
+      for (const row of (sharing ?? []) as unknown as Row[]) {
+        const capacity = Number(row.trucks?.capacity_tonnes ?? TRUCK_TYPES[row.loads.truck_type].tonnes);
+        if (row.carrier_id !== load.shipper_id && canRideAlong(row.loads, load, at, capacity - Number(row.loads.weight_tonnes), capacity)) alongside.add(row.carrier_id);
+      }
+      await Promise.all([...alongside].slice(0, 30).map((id) => notifyUser(id, `Fill your truck: ${Number(load.weight_tonnes)} t ${route}`,
+        `A part load going your way, pickup ${load.pickup_date}. ${offer}.`, path, { key: `along-${loadId}-${id}` })));
+    }
+
     // Free trucks of the right type near the pickup: SMS first.
     const { data: free } = await admin.from("truck_availability").select("carrier_id, lat, lng, place_id, trucks!inner(truck_type, active), carriers!inner(status)")
       .eq("trucks.truck_type", load.truck_type).eq("trucks.active", true).eq("carriers.status", "verified").gt("expires_at", new Date().toISOString()).limit(500);
@@ -40,16 +57,20 @@ export async function announceLoad(loadId: string, options: { favourites?: boole
     const near = new Set<string>();
     for (const row of free ?? []) {
       const at = row.lat !== null && row.lng !== null ? { lat: row.lat as number, lng: row.lng as number } : placeById.get(row.place_id as string);
-      if (origin && at && straightLineKm(at, origin) <= NEAR_KM) near.add(row.carrier_id as string);
+      if (origin && at && straightLineKm(at, origin) <= NEAR_KM && !alongside.has(row.carrier_id as string)) near.add(row.carrier_id as string);
     }
     await Promise.all([...near].slice(0, 30).map((id) => notifyUser(id, `Load near your free truck: ${route}`,
       `${route}, pickup ${load.pickup_date}. Your truck is close. ${offer} before another truck does.`, path, { sms: true, key: `near-${loadId}-${id}` })));
 
     // Everyone else with that truck type: push, or email when the app isn't installed.
     const { data: trucks } = await admin.from("trucks").select("carrier_id, carriers!inner(status)").eq("truck_type", load.truck_type).eq("active", true).eq("carriers.status", "verified").limit(300);
-    const others = [...new Set((trucks ?? []).map((row) => row.carrier_id as string))].filter((id) => !near.has(id) && id !== load.shipper_id).slice(0, 60);
+    const others = [...new Set((trucks ?? []).map((row) => row.carrier_id as string))].filter((id) => !near.has(id) && !alongside.has(id) && id !== load.shipper_id).slice(0, 60);
     await Promise.all(others.map((id) => notifyUser(id, `New load: ${route}`, `${route}, pickup ${load.pickup_date}. ${offer}.`, path, { key: `load-${loadId}-${id}` })));
   } catch (error) {
     console.error("Carrier alerts failed", error);
   }
+}
+
+function shiftDays(date: string, days: number) {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 }

@@ -91,8 +91,39 @@ export type DocumentKind = keyof typeof DOCUMENT_KINDS;
 /** Needed before Vemi verifies a carrier. */
 export const REQUIRED_DOCUMENTS: DocumentKind[] = ["national_id", "kra_pin", "logbook", "inspection", "git_insurance"];
 
+/** Customs and transit papers on a cross-border trip, in English and Kiswahili (the driver page). */
+export const BORDER_PAPERS = {
+  customs_entry: { en: "Customs entry / T1 transit number", sw: "Namba ya forodha / T1", required: true },
+  commercial_invoice: { en: "Commercial invoice", sw: "Ankara ya mzigo", required: true },
+  packing_list: { en: "Packing list", sw: "Orodha ya mzigo", required: true },
+  rects_seal: { en: "Electronic cargo seal (RECTS) number", sw: "Namba ya kufuli ya kielektroniki (RECTS)", required: false },
+  certificate_of_origin: { en: "Certificate of origin (EAC / COMESA)", sw: "Cheti cha asili ya mzigo (EAC / COMESA)", required: false },
+  permit: { en: "Permit (road, transit or import)", sw: "Kibali (barabara, usafirishaji au kuingiza)", required: false },
+  border_release: { en: "Border release / stamped papers", sw: "Karatasi zilizogongwa muhuri mpakani", required: false },
+  other: { en: "Other paper", sw: "Karatasi nyingine", required: false },
+} as const;
+export type BorderPaperKind = keyof typeof BORDER_PAPERS;
+export const BORDER_PAPER_KINDS = Object.keys(BORDER_PAPERS) as BorderPaperKind[];
+
+/** The required papers a trip does not have yet. */
+export function missingPapers(kinds: string[]): BorderPaperKind[] {
+  const have = new Set(kinds);
+  return BORDER_PAPER_KINDS.filter((k) => BORDER_PAPERS[k].required && !have.has(k));
+}
+
+/** Hours spent at borders: from each "at the border" event to the next event after it. */
+export function borderHours(events: { status: string; created_at: string }[]): number[] {
+  const sorted = [...events].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  return sorted.flatMap((e, i) => {
+    const next = e.status === "at_border" ? sorted.slice(i + 1).find((n) => n.status !== "at_border") : undefined;
+    return next ? [Math.round(((Date.parse(next.created_at) - Date.parse(e.created_at)) / 36e5) * 10) / 10] : [];
+  });
+}
+
 /** Trips have a secret column (the driver link token), so never select("*") on them through the user's session. */
 export const TRIP_COLUMNS = "id, ref, load_id, bid_id, shipper_id, carrier_id, price, commission_bps, commission, carrier_payout, truck_id, driver_id, status, amount_paid, paid_at, picked_up_at, delivered_at, completed_at, pod_path, dispute_reason, cancel_reason, created_at, updated_at, insurance_fee, discount, extras, extras_commission, tip, advance_amount, advance_fee, on_credit, credit_due_on, expected_delivery, arrived_pickup_at, arrived_dropoff_at, sos_at, sos_note, alert, alert_at, claim_amount, dispute_files, cancel_fee, cancelled_by, total_due, balance";
+/** trip_documents has a column grant (added_by is hidden), so select these. */
+export const TRIP_DOCUMENT_COLUMNS = "id, trip_id, kind, reference, path, added_as, created_at";
 export const PAYMENT_COLUMNS = "id, trip_id, method, amount, phone, receipt, status, result_description, created_at, paid_at, purpose, usd_amount";
 
 export const PICKUP_WINDOWS = { anytime: "Any time", morning: "Morning (6am to 12pm)", afternoon: "Afternoon (12pm to 5pm)", evening: "Evening (5pm to 9pm)" } as const;
