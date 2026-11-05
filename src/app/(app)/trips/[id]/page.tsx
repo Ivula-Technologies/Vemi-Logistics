@@ -23,6 +23,8 @@ import { LIVE_STATUSES, PROGRESS, TRIP_STATUS, progressIndex } from "@/lib/trips
 import { displayPhone } from "@/lib/phone";
 import { cn, formatDateTime, formatKes } from "@/lib/utils";
 import type { Message } from "@/lib/types";
+import { getLang } from "@/lib/i18n-server";
+import { tripStatusLabel } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Trip" };
 
@@ -44,6 +46,7 @@ export default async function TripPage({ params, searchParams }: { params: Promi
   const view = await loadTripView(id, user.id, profile.role);
   if (!view) notFound();
   const { trip, load, viewer, origin, destination } = view;
+  const lang = viewer === "carrier" ? await getLang() : "en";
   const live = (LIVE_STATUSES as string[]).includes(trip.status);
   const step = progressIndex(trip.status);
   const defaultPhone = displayPhone(profile.phone);
@@ -63,11 +66,11 @@ export default async function TripPage({ params, searchParams }: { params: Promi
   return <div className="max-w-5xl">
     {live || trip.status === "awaiting_payment" ? <AutoRefresh seconds={live ? 30 : 20} /> : null}
     <Flash error={query.error} saved={saved} savedText={savedText} />
-    <PageHeader title={`${origin.name} → ${destination.name}`} description={<span className="inline-flex flex-wrap items-center gap-2">{trip.ref} <TripStatusBadge status={trip.status} />{trip.sos_at ? <span className="rounded bg-destructive px-1.5 py-0.5 text-xs font-semibold text-white">SOS</span> : null}</span>}
+    <PageHeader title={`${origin.name} → ${destination.name}`} description={<span className="inline-flex flex-wrap items-center gap-2">{trip.ref} <TripStatusBadge status={trip.status} lang={lang} />{trip.sos_at ? <span className="rounded bg-destructive px-1.5 py-0.5 text-xs font-semibold text-white">SOS</span> : null}</span>}
       actions={viewer !== "carrier" && trip.amount_paid > 0 ? <Button asChild variant="outline" size="sm"><Link href={`/trips/${trip.id}/receipt`}><Receipt className="mr-2 h-4 w-4" />Receipt</Link></Button> : null} />
 
     {trip.status !== "cancelled" ? <ol className="mb-6 grid grid-cols-7 gap-1" aria-label="Trip progress">
-      {PROGRESS.map((s, i) => <li key={s} className="min-w-0"><div className={cn("h-1.5 rounded-full", i <= step ? "bg-primary" : "bg-muted")} /><p className={cn("mt-1 hidden truncate text-[11px] sm:block", i === step ? "font-semibold" : "text-muted-foreground")}>{TRIP_STATUS[s].label.split(",")[0]}</p></li>)}
+      {PROGRESS.map((s, i) => <li key={s} className="min-w-0"><div className={cn("h-1.5 rounded-full", i <= step ? "bg-primary" : "bg-muted")} /><p className={cn("mt-1 hidden truncate text-[11px] sm:block", i === step ? "font-semibold" : "text-muted-foreground")}>{(lang === "en" ? TRIP_STATUS[s].label : tripStatusLabel(lang, s)).split(",")[0]}</p></li>)}
     </ol> : null}
 
     <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -77,8 +80,8 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         {viewer === "shipper" ? <CodesPanel view={view} /> : null}
         <ChargesPanel view={view} />
         <BorderPapersPanel view={view} />
-        <FillTruckPanel view={view} />
-        <ReturnLoadsPanel view={view} />
+        <FillTruckPanel view={view} lang={lang} />
+        <ReturnLoadsPanel view={view} lang={lang} />
         {viewer === "shipper" && trip.status === "delivered" ? <DeliveredPanel view={view} /> : null}
         {viewer !== "admin" && trip.status === "completed" ? <CompletedPanel view={view} defaultPhone={defaultPhone} /> : null}
 

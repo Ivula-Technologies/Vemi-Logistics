@@ -19,11 +19,14 @@ import { commissionBps } from "@/lib/commission";
 import type { LoadStop } from "@/lib/types";
 import { formatDate, formatKes } from "@/lib/utils";
 import type { Bid, Load, PlatformSettings } from "@/lib/types";
+import { getLang } from "@/lib/i18n-server";
+import { formatDateIn, translator } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Load" };
 
 export default async function BoardLoadPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
-  const [{ id }, { error }, { user, carrier }] = await Promise.all([params, searchParams, requireRole("carrier")]);
+  const [{ id }, { error }, { user, carrier }, lang] = await Promise.all([params, searchParams, requireRole("carrier"), getLang()]);
+  const tr = translator(lang);
   const supabase = await createClient();
   const [{ data: load }, { data: bid }, { data: settings }, { data: trip }, { data: stopRows }, places] = await Promise.all([
     supabase.from("loads").select("*").eq("id", id).maybeSingle(),
@@ -43,29 +46,29 @@ export default async function BoardLoadPage({ params, searchParams }: { params: 
   const { data: shipper } = await supabase.from("profiles").select("rating_avg, rating_count").eq("id", l.shipper_id).maybeSingle();
   return <div className="max-w-3xl">
     <Flash error={error} />
-    <PageHeader title={`${origin?.name} → ${destination?.name}`} description={`${l.ref} · pickup ${formatDate(l.pickup_date)}`} actions={trip ? <Button asChild><Link href={`/trips/${trip.id}`}>You won this: open the trip</Link></Button> : null} />
+    <PageHeader title={`${origin?.name} → ${destination?.name}`} description={tr("load.pickupOn", { ref: l.ref, date: lang === "en" ? formatDate(l.pickup_date) : formatDateIn(lang, l.pickup_date) })} actions={trip ? <Button asChild><Link href={`/trips/${trip.id}`}>{tr("load.won")}</Link></Button> : null} />
     <div className="grid gap-6 md:grid-cols-[1fr_300px]">
       <div className="rounded-lg border bg-card p-5 text-sm">
         <RouteLine from={origin} to={destination} />
         <dl className="mt-4 grid grid-cols-[110px_1fr] gap-x-3 gap-y-2">
-          <dt className="text-muted-foreground">Pickup area</dt><dd>{l.origin_detail || origin?.name}{l.pickup_window !== "anytime" ? ` · ${PICKUP_WINDOWS[l.pickup_window].toLowerCase()}` : ""}</dd>
-          {stops.map((stop) => <Fragment key={stop.id}><dt className="text-muted-foreground">Stop {stop.seq}</dt><dd>{stop.kind === "pickup" ? "Pick up at " : "Drop at "}{stop.detail || places.get(stop.place_id)?.name}</dd></Fragment>)}
-          <dt className="text-muted-foreground">Drop-off area</dt><dd>{l.destination_detail || destination?.name}</dd>
-          <dt className="text-muted-foreground">Goods</dt><dd>{CARGO_TYPES[l.cargo_type]}: {l.cargo_description}</dd>
-          <dt className="text-muted-foreground">Weight</dt><dd>{Number(l.weight_tonnes)} t{l.part_load ? " · part load: fill the rest of the truck with other loads going the same way" : ""}</dd>
-          <dt className="text-muted-foreground">Truck</dt><dd>{TRUCK_TYPES[l.truck_type]?.label}</dd>
-          <dt className="text-muted-foreground">Distance</dt><dd>about {l.distance_km.toLocaleString()} km{l.border_crossings ? `, ${l.border_crossings} border crossing${l.border_crossings > 1 ? "s" : ""}` : ""}</dd>
-          {l.notes ? <><dt className="text-muted-foreground">Notes</dt><dd>{l.notes}</dd></> : null}
-          <dt className="text-muted-foreground">Shipper</dt><dd>{shipper?.rating_count ? `${Number(shipper.rating_avg).toFixed(1)} stars from ${shipper.rating_count} carriers` : "New on Vemi"}</dd>
-          {l.require_codes ? <><dt className="text-muted-foreground">Codes</dt><dd>Your driver enters a pickup code to load and the receiver&apos;s code to finish.</dd></> : null}
+          <dt className="text-muted-foreground">{tr("load.pickupArea")}</dt><dd>{l.origin_detail || origin?.name}{l.pickup_window !== "anytime" ? ` · ${PICKUP_WINDOWS[l.pickup_window].toLowerCase()}` : ""}</dd>
+          {stops.map((stop) => <Fragment key={stop.id}><dt className="text-muted-foreground">{tr("load.stop", { n: stop.seq })}</dt><dd>{stop.kind === "pickup" ? tr("load.pickAt") : tr("load.dropAt")}{stop.detail || places.get(stop.place_id)?.name}</dd></Fragment>)}
+          <dt className="text-muted-foreground">{tr("load.dropArea")}</dt><dd>{l.destination_detail || destination?.name}</dd>
+          <dt className="text-muted-foreground">{tr("load.goods")}</dt><dd>{CARGO_TYPES[l.cargo_type]}: {l.cargo_description}</dd>
+          <dt className="text-muted-foreground">{tr("load.weight")}</dt><dd>{Number(l.weight_tonnes)} t{l.part_load ? tr("load.partNote") : ""}</dd>
+          <dt className="text-muted-foreground">{tr("load.truck")}</dt><dd>{TRUCK_TYPES[l.truck_type]?.label}</dd>
+          <dt className="text-muted-foreground">{tr("load.distance")}</dt><dd>{tr("load.km", { km: l.distance_km.toLocaleString() })}{l.border_crossings ? (l.border_crossings > 1 ? tr("load.borders", { n: l.border_crossings }) : tr("load.border")) : ""}</dd>
+          {l.notes ? <><dt className="text-muted-foreground">{tr("load.notes")}</dt><dd>{l.notes}</dd></> : null}
+          <dt className="text-muted-foreground">{tr("load.shipper")}</dt><dd>{shipper?.rating_count ? tr("load.stars", { stars: Number(shipper.rating_avg).toFixed(1), count: shipper.rating_count }) : tr("load.newShipper")}</dd>
+          {l.require_codes ? <><dt className="text-muted-foreground">{tr("load.codes")}</dt><dd>{tr("load.codesHint")}</dd></> : null}
         </dl>
-        <p className="mt-4 text-xs text-muted-foreground">Contact names and phone numbers are shared once the shipper books you and pays. Vemi pays you to M-Pesa within 24 hours of confirmed delivery.</p>
+        <p className="mt-4 text-xs text-muted-foreground">{tr("load.contacts")}</p>
       </div>
       <div className="space-y-3">
-        <div className="rounded-lg border bg-card p-4"><p className="text-xs uppercase tracking-wide text-muted-foreground">Shipper offers</p><p className="text-2xl font-bold">{formatKes(l.price)}</p><p className="text-xs text-muted-foreground">You get {formatKes(carrierPayout(l.price, bps))} after Vemi&apos;s {percent(bps)}</p></div>
-        {l.status === "open" && l.instant_book && !trip ? <form action={instantBook}><input type="hidden" name="loadId" value={l.id} /><SubmitButton size="lg" className="w-full" pendingLabel="Booking…"><Zap className="mr-2 h-4 w-4" />Book now at {formatKes(l.price)}</SubmitButton><p className="mt-1 text-center text-xs text-muted-foreground">First verified truck wins. Or send a different price below.</p></form> : null}
-        {l.status === "open" && b?.status !== "accepted" ? <BidForm loadId={l.id} offered={l.price} bps={bps} current={b?.status === "pending" ? b.amount : null} currentNote={b?.note ?? ""} /> : <p className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">This load is no longer taking bids.</p>}
-        {b?.status === "pending" ? <form action={withdrawBid}><input type="hidden" name="bidId" value={b.id} /><input type="hidden" name="loadId" value={l.id} /><SubmitButton variant="ghost" className="w-full" pendingLabel="…">Withdraw my bid ({formatKes(b.amount)})</SubmitButton></form> : null}
+        <div className="rounded-lg border bg-card p-4"><p className="text-xs uppercase tracking-wide text-muted-foreground">{tr("load.offers")}</p><p className="text-2xl font-bold">{formatKes(l.price)}</p><p className="text-xs text-muted-foreground">{tr("load.youGet", { amount: formatKes(carrierPayout(l.price, bps)), percent: percent(bps) })}</p></div>
+        {l.status === "open" && l.instant_book && !trip ? <form action={instantBook}><input type="hidden" name="loadId" value={l.id} /><SubmitButton size="lg" className="w-full" pendingLabel={tr("load.booking")}><Zap className="mr-2 h-4 w-4" />{tr("load.bookNow", { amount: formatKes(l.price) })}</SubmitButton><p className="mt-1 text-center text-xs text-muted-foreground">{tr("load.firstWins")}</p></form> : null}
+        {l.status === "open" && b?.status !== "accepted" ? <BidForm loadId={l.id} offered={l.price} bps={bps} current={b?.status === "pending" ? b.amount : null} currentNote={b?.note ?? ""} lang={lang} /> : <p className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{tr("load.closed")}</p>}
+        {b?.status === "pending" ? <form action={withdrawBid}><input type="hidden" name="bidId" value={b.id} /><input type="hidden" name="loadId" value={l.id} /><SubmitButton variant="ghost" className="w-full" pendingLabel="…">{tr("load.withdraw", { amount: formatKes(b.amount) })}</SubmitButton></form> : null}
       </div>
     </div>
   </div>;

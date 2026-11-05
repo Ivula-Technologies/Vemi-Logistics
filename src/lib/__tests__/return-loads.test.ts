@@ -44,3 +44,17 @@ describe("return loads", () => {
     expect(list[0].homeKm).toBe(0);
   });
 });
+
+import { asLang, t, tripStatusLabel } from "@/lib/i18n";
+
+describe("Kiswahili", () => {
+  it("fills placeholders and falls back to English", () => {
+    expect(t("en", "home.hello", { name: "Juma" })).toBe("Habari, Juma");
+    expect(t("sw", "board.from", { country: "Uganda" })).toBe("Kutoka Uganda");
+    expect(t("sw", "return.home", {})).toBe("Inakurudisha kuelekea {town}");
+    expect(asLang("sw")).toBe("sw");
+    expect(asLang("fr")).toBe("en");
+    expect(tripStatusLabel("sw", "in_transit")).toBe("Liko barabarani");
+    expect(tripStatusLabel("sw", "unknown")).toBe("unknown");
+  });
+});

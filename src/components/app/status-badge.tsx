@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { LOAD_STATUS, TRIP_STATUS, type Tone } from "@/lib/trips";
+import { tripStatusLabel, type AppLang } from "@/lib/i18n";
 
 const TONES: Record<Tone, string> = {
   info: "border-sky-600/20 bg-sky-500/10 text-sky-800 dark:text-sky-300",
@@ -13,9 +14,9 @@ export function ToneBadge({ tone, children, className }: { tone: Tone; children:
   return <span className={cn("inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold", TONES[tone], className)}>{children}</span>;
 }
 
-export function TripStatusBadge({ status }: { status: string }) {
+export function TripStatusBadge({ status, lang = "en" }: { status: string; lang?: AppLang }) {
   const meta = TRIP_STATUS[status as keyof typeof TRIP_STATUS] ?? { label: status, tone: "muted" as Tone };
-  return <ToneBadge tone={meta.tone}>{meta.label}</ToneBadge>;
+  return <ToneBadge tone={meta.tone}>{lang === "en" ? meta.label : tripStatusLabel(lang, status)}</ToneBadge>;
 }
 
 export function LoadStatusBadge({ status }: { status: string }) {
