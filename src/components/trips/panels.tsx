@@ -24,6 +24,7 @@ import { ALERTS, BEFORE_LOADING, CARGO_TYPES, CHARGE_KINDS, COMPLIMENTS, ON_THE_
 import { displayPhone } from "@/lib/phone";
 import { percent } from "@/lib/commission";
 import { formatDate, formatDateTime, formatKes } from "@/lib/utils";
+import { translator, type AppLang } from "@/lib/i18n";
 import type { TripView } from "@/lib/trip-view";
 import { FileInput } from "@/components/app/file-input";
 
@@ -176,37 +177,40 @@ export function MoneyLines({ view }: { view: TripView }) {
 // Carrier
 // ---------------------------------------------------------------------------------------------
 
-export function CarrierAssign({ view }: { view: TripView }) {
+export function CarrierAssign({ view, lang = "en" }: { view: TripView; lang?: AppLang }) {
+  const tr = translator(lang);
   const { trip, fleet, driver, driverToken } = view;
   const link = driverToken ? `${site()}/d/${driverToken}` : null;
-  return <Panel title={trip.truck_id ? "Truck and driver" : "Assign a truck and driver"}>
-    {trip.status === "awaiting_payment" ? <p className="mb-3 rounded-md bg-amber-500/10 px-3 py-2 text-sm">Waiting for the shipper to pay. Get ready now; you&apos;ll get an SMS the moment it&apos;s paid.</p> : null}
+  return <Panel title={trip.truck_id ? tr("ta.truckDriver") : tr("ta.assignTitle")}>
+    {trip.status === "awaiting_payment" ? <p className="mb-3 rounded-md bg-amber-500/10 px-3 py-2 text-sm">{tr("ta.waitPay")}</p> : null}
     {fleet.trucks.length && fleet.drivers.length ? <form action={assignTrip} className="grid gap-3 sm:grid-cols-2">
       <Hidden tripId={trip.id} />
-      <Field label="Truck" htmlFor="truckId"><select id="truckId" name="truckId" className={selectClass} defaultValue={trip.truck_id ?? ""} required><option value="" disabled>Choose</option>{fleet.trucks.map((x) => <option key={x.id} value={x.id}>{x.plate} · {TRUCK_TYPES[x.truck_type]?.short}</option>)}</select></Field>
-      <Field label="Driver" htmlFor="driverId"><select id="driverId" name="driverId" className={selectClass} defaultValue={trip.driver_id ?? ""} required><option value="" disabled>Choose</option>{fleet.drivers.map((x) => <option key={x.id} value={x.id}>{x.full_name}</option>)}</select></Field>
-      {smsConfigured() ? <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="smsDriver" defaultChecked className="accent-[hsl(var(--primary))]" />Text the driver their trip link (in their language)</label> : null}
-      <div className="sm:col-span-2"><SubmitButton variant={trip.truck_id ? "outline" : "default"} pendingLabel="Saving…">{trip.truck_id ? "Change" : "Assign"}</SubmitButton></div>
-    </form> : <p className="text-sm">Add a truck and a driver in <a className="font-semibold text-primary underline" href="/fleet">Fleet</a> first.</p>}
-    {link && trip.driver_id ? <div className="mt-4 border-t pt-4"><p className="mb-2 text-sm font-semibold">Driver&apos;s trip link</p><p className="mb-3 text-sm text-muted-foreground">The driver opens it on their phone to see pickup details, enter the codes and tap each step. Location is shared only while it&apos;s open.</p><ShareDriverLink url={link} driverPhone={driver?.phone ?? null} tripRef={trip.ref} /></div> : null}
+      <Field label={tr("ta.truck")} htmlFor="truckId"><select id="truckId" name="truckId" className={selectClass} defaultValue={trip.truck_id ?? ""} required><option value="" disabled>{tr("ta.choose")}</option>{fleet.trucks.map((x) => <option key={x.id} value={x.id}>{x.plate} · {TRUCK_TYPES[x.truck_type]?.short}</option>)}</select></Field>
+      <Field label={tr("ta.driver")} htmlFor="driverId"><select id="driverId" name="driverId" className={selectClass} defaultValue={trip.driver_id ?? ""} required><option value="" disabled>{tr("ta.choose")}</option>{fleet.drivers.map((x) => <option key={x.id} value={x.id}>{x.full_name}</option>)}</select></Field>
+      {smsConfigured() ? <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="smsDriver" defaultChecked className="accent-[hsl(var(--primary))]" />{tr("ta.smsDriver")}</label> : null}
+      <div className="sm:col-span-2"><SubmitButton variant={trip.truck_id ? "outline" : "default"} pendingLabel={tr("ta.saving")}>{trip.truck_id ? tr("ta.change") : tr("ta.assign")}</SubmitButton></div>
+    </form> : <p className="text-sm">{tr("ta.needFleet", { fleet: "@@" }).split("@@")[0]}<a className="font-semibold text-primary underline" href="/fleet">{tr("nav.fleet")}</a>{tr("ta.needFleet", { fleet: "@@" }).split("@@")[1]}</p>}
+    {link && trip.driver_id ? <div className="mt-4 border-t pt-4"><p className="mb-2 text-sm font-semibold">{tr("ta.driverLink")}</p><p className="mb-3 text-sm text-muted-foreground">{tr("ta.driverLinkHint")}</p><ShareDriverLink url={link} driverPhone={driver?.phone ?? null} tripRef={trip.ref} /></div> : null}
   </Panel>;
 }
 
-export function CarrierMove({ view }: { view: TripView }) {
+export function CarrierMove({ view, lang = "en" }: { view: TripView; lang?: AppLang }) {
+  const tr = translator(lang);
   const { trip, load, stops } = view;
   const steps = nextSteps(trip.status, load.border_crossings > 0);
   const open = stops.filter((s) => !s.done_at);
   const onRoad = (ON_THE_ROAD as string[]).includes(trip.status);
   if (!steps.length && !open.length) return null;
-  return <Panel title="Update the trip">
-    <p className="mb-3 text-sm text-muted-foreground">Your driver can do this from their link. Each update tells the shipper.{load.require_codes ? " Loading needs the pickup code; delivering needs the receiver's code or a delivery photo." : ""}</p>
-    {onRoad && open.length ? <ul className="mb-4 space-y-2">{open.map((stop) => <li key={stop.id} className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"><span>Stop {stop.seq}: {stop.kind === "pickup" ? "pick up at" : "drop at"} {stop.detail || view.places.get(stop.place_id)?.name}</span>
-      <form action={carrierStopDone}><Hidden tripId={trip.id} /><input type="hidden" name="seq" value={stop.seq} /><SubmitButton size="sm" variant="outline" pendingLabel="…">Done</SubmitButton></form></li>)}</ul> : null}
+  return <Panel title={tr("ta.update")}>
+    <p className="mb-3 text-sm text-muted-foreground">{tr("ta.updateHint")}{load.require_codes ? tr("ta.codesHint") : ""}</p>
+    {onRoad && open.length ? <ul className="mb-4 space-y-2">{open.map((stop) => <li key={stop.id} className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"><span>{tr("ta.stop", { n: stop.seq })}{stop.kind === "pickup" ? tr("ta.pickAt") : tr("ta.dropAt")} {stop.detail || view.places.get(stop.place_id)?.name}</span>
+      <form action={carrierStopDone}><Hidden tripId={trip.id} /><input type="hidden" name="seq" value={stop.seq} /><SubmitButton size="sm" variant="outline" pendingLabel="…">{tr("ta.done")}</SubmitButton></form></li>)}</ul> : null}
     <CarrierStatusButtons tripId={trip.id} steps={steps} action={carrierUpdateTrip} requireCodes={load.require_codes} />
   </Panel>;
 }
 
-export function CarrierExtras({ view }: { view: TripView }) {
+export function CarrierExtras({ view, lang = "en" }: { view: TripView; lang?: AppLang }) {
+  const tr = translator(lang);
   const { trip, settings } = view;
   const onRoad = (ON_THE_ROAD as string[]).includes(trip.status);
   const inProgress = ["scheduled", "to_pickup", "at_pickup", "loaded", "in_transit", "at_border", "at_dropoff", "delivered"].includes(trip.status);
@@ -214,24 +218,25 @@ export function CarrierExtras({ view }: { view: TripView }) {
   const canAdvance = onRoad && trip.advance_amount === 0 && (trip.on_credit || trip.paid_at) && maxAdvance >= 1000;
   const showPod = ["in_transit", "at_border", "at_dropoff", "delivered"].includes(trip.status) && !trip.pod_path;
   if (!inProgress) return null;
-  return <Panel title="Photos, extras and fuel" tone="plain">
+  return <Panel title={tr("ta.extras")} tone="plain">
     <div className="space-y-5 text-sm">
-      {showPod ? <div><p className="mb-2 font-semibold">Delivery photo</p><form action={uploadPodAsCarrier} className="flex flex-col gap-2 sm:flex-row"><Hidden tripId={trip.id} /><FileInput name="file" accept="image/*,application/pdf" capture="environment" required /><SubmitButton variant="outline" pendingLabel="Uploading…"><Camera className="mr-2 h-4 w-4" />Upload</SubmitButton></form><p className="mt-1 text-xs text-muted-foreground">A photo of the signed delivery note speeds up confirmation and your payout.</p></div> : null}
-      {canAdvance ? <div><p className="mb-1 flex items-center gap-1.5 font-semibold"><Fuel className="h-4 w-4 text-primary" />Fuel advance</p><p className="mb-2 text-xs text-muted-foreground">Take up to {formatKes(maxAdvance)} of your payout now for a {percent(settings?.fuel_advance_fee_bps ?? 300)} fee. The rest comes after delivery.</p>
-        <form action={requestFuelAdvance} className="flex gap-2"><Hidden tripId={trip.id} /><Input name="amount" type="number" min="1000" max={maxAdvance} defaultValue={maxAdvance} aria-label="Advance amount" /><SubmitButton variant="outline" pendingLabel="…">Request</SubmitButton></form></div>
-        : trip.advance_amount ? <p className="flex items-center gap-1.5"><Fuel className="h-4 w-4 text-primary" />Fuel advance: {formatKes(trip.advance_amount - trip.advance_fee)} sent or on its way (fee {formatKes(trip.advance_fee)}).</p> : null}
-      {trip.status !== "delivered" ? <div><p className="mb-2 font-semibold">Ask for an extra charge</p><ChargeForm tripId={trip.id} /><p className="mt-1 text-xs text-muted-foreground">Waiting time over {view.settings?.free_waiting_hours ?? 3} hours is added automatically when the driver taps Arrived and then Loaded or Delivered.</p></div> : null}
+      {showPod ? <div><p className="mb-2 font-semibold">{tr("ta.pod")}</p><form action={uploadPodAsCarrier} className="flex flex-col gap-2 sm:flex-row"><Hidden tripId={trip.id} /><FileInput name="file" accept="image/*,application/pdf" capture="environment" required /><SubmitButton variant="outline" pendingLabel={tr("ta.uploading")}><Camera className="mr-2 h-4 w-4" />{tr("ta.upload")}</SubmitButton></form><p className="mt-1 text-xs text-muted-foreground">{tr("ta.podHint")}</p></div> : null}
+      {canAdvance ? <div><p className="mb-1 flex items-center gap-1.5 font-semibold"><Fuel className="h-4 w-4 text-primary" />{tr("ta.advance")}</p><p className="mb-2 text-xs text-muted-foreground">{tr("ta.advanceHint", { max: formatKes(maxAdvance), fee: percent(settings?.fuel_advance_fee_bps ?? 300) })}</p>
+        <form action={requestFuelAdvance} className="flex gap-2"><Hidden tripId={trip.id} /><Input name="amount" type="number" min="1000" max={maxAdvance} defaultValue={maxAdvance} aria-label="Advance amount" /><SubmitButton variant="outline" pendingLabel="…">{tr("ta.request")}</SubmitButton></form></div>
+        : trip.advance_amount ? <p className="flex items-center gap-1.5"><Fuel className="h-4 w-4 text-primary" />{tr("ta.advanceSent", { amount: formatKes(trip.advance_amount - trip.advance_fee), fee: formatKes(trip.advance_fee) })}</p> : null}
+      {trip.status !== "delivered" ? <div><p className="mb-2 font-semibold">{tr("ta.extraCharge")}</p><ChargeForm tripId={trip.id} /><p className="mt-1 text-xs text-muted-foreground">{tr("ta.waitingHint", { hours: view.settings?.free_waiting_hours ?? 3 })}</p></div> : null}
     </div>
   </Panel>;
 }
 
-export function CarrierCancel({ view }: { view: TripView }) {
+export function CarrierCancel({ view, lang = "en" }: { view: TripView; lang?: AppLang }) {
+  const tr = translator(lang);
   const { trip } = view;
   if (!(BEFORE_LOADING as string[]).includes(trip.status)) return null;
   return <details className="rounded-lg border bg-card p-4 text-sm">
-    <summary className="cursor-pointer font-semibold text-destructive">I can&apos;t do this trip</summary>
-    <p className="mt-2 text-muted-foreground">The load goes back on the board and the shipper gets their money back.{trip.status !== "awaiting_payment" ? " Cancelling after payment counts against your reliability score, which shippers see with every bid." : ""}</p>
-    <form action={carrierCancelTrip} className="mt-2 flex flex-col gap-2 sm:flex-row"><Hidden tripId={trip.id} /><Input name="reason" placeholder="Tell the shipper why" minLength={5} maxLength={300} required /><SubmitButton variant="destructive" size="sm" pendingLabel="…">Give the trip back</SubmitButton></form>
+    <summary className="cursor-pointer font-semibold text-destructive">{tr("ta.cantDo")}</summary>
+    <p className="mt-2 text-muted-foreground">{tr("ta.cancelHint")}{trip.status !== "awaiting_payment" ? tr("ta.cancelScore") : ""}</p>
+    <form action={carrierCancelTrip} className="mt-2 flex flex-col gap-2 sm:flex-row"><Hidden tripId={trip.id} /><Input name="reason" placeholder={tr("ta.why")} minLength={5} maxLength={300} required /><SubmitButton variant="destructive" size="sm" pendingLabel="…">{tr("ta.giveBack")}</SubmitButton></form>
   </details>;
 }
 

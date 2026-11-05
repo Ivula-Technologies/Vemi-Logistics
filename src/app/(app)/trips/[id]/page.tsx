@@ -85,8 +85,8 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         {viewer === "shipper" && trip.status === "delivered" ? <DeliveredPanel view={view} /> : null}
         {viewer !== "admin" && trip.status === "completed" ? <CompletedPanel view={view} defaultPhone={defaultPhone} /> : null}
 
-        {viewer === "carrier" && ["awaiting_payment", "scheduled", "to_pickup"].includes(trip.status) ? <CarrierAssign view={view} /> : null}
-        {viewer === "carrier" ? <><CarrierMove view={view} /><CarrierExtras view={view} /></> : null}
+        {viewer === "carrier" && ["awaiting_payment", "scheduled", "to_pickup"].includes(trip.status) ? <CarrierAssign view={view} lang={lang} /> : null}
+        {viewer === "carrier" ? <><CarrierMove view={view} lang={lang} /><CarrierExtras view={view} lang={lang} /></> : null}
         {viewer === "admin" ? <AdminPanel view={view} /> : null}
 
         <section className="overflow-hidden rounded-lg border bg-card">
@@ -109,7 +109,7 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         {viewer !== "admin" && live ? <Panel title="Safety" tone="danger"><SosButton access={access} /></Panel> : null}
 
         {viewer === "shipper" ? <ShipperCancel view={view} /> : null}
-        {viewer === "carrier" ? <CarrierCancel view={view} /> : null}
+        {viewer === "carrier" ? <CarrierCancel view={view} lang={lang} /> : null}
 
         <section>
           <h2 className="mb-3 font-semibold">Timeline</h2>
