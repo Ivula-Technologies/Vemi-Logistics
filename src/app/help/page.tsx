@@ -19,7 +19,7 @@ const SHIPPERS: [string, string][] = [
 const CARRIERS: [string, string][] = [
   ["How do I get verified?", "Add your business details, M-Pesa payout number and documents (ID, KRA PIN, logbook, inspection and goods-in-transit insurance) on your Profile. Vemi checks them within one working day."],
   ["When am I paid?", "To your M-Pesa within 24 hours of the shipper confirming delivery (it confirms itself 48 hours after delivery if the shipper does nothing). Tips go 100% to you. You can ask for a fuel advance once the goods are loaded."],
-  ["How do I find return loads?", "Mark a truck as free in Fleet with the town it's in. Vemi texts you loads near it, and Find loads shows return loads from there first."],
+  ["How do I find return loads?", "Every booked trip shows \"Load for the way back\": loads picking up near where the truck unloads, from the day it arrives to 3 days later, with loads heading back to where it started first. Vemi also sends you a push when one is posted. A truck marked free in Fleet gets texts about loads near it too."],
   ["What does my driver need?", "Nothing to install. Assign the trip and send the driver link by SMS or WhatsApp. The page is in Kiswahili or English, has directions, the steps to tap, chat, and an SOS button."],
   ["What if I can't do a trip?", "Give it back from the trip page as early as you can. The load goes back on the board. Cancelling after the shipper has paid shows in your reliability score."],
 ];

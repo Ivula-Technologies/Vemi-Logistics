@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notify";
 import { TRUCK_TYPES, straightLineKm, type TruckType } from "@/lib/pricing";
 import { canRideAlong } from "@/lib/part-loads";
+import { HOME_KM, isReturnLoad, kmFromHome } from "@/lib/return-loads";
 import { formatKes } from "@/lib/utils";
 
 /** How close a free truck must be to the pickup to get the "near you" SMS first. */
@@ -49,6 +50,26 @@ export async function announceLoad(loadId: string, options: { favourites?: boole
         `A part load going your way, pickup ${load.pickup_date}. ${offer}.`, path, { key: `along-${loadId}-${id}` })));
     }
 
+    // Trucks that unload near this pickup around then: a load for the way back, so they don't drive home empty.
+    const returning = new Set<string>();
+    {
+      const { data: trips } = await admin.from("trips").select("carrier_id, trucks(truck_type, capacity_tonnes), loads!inner(id, origin_id, destination_id, pickup_date, truck_type, distance_km, border_crossings)")
+        .in("status", ["scheduled", "to_pickup", "at_pickup", "loaded", "in_transit", "at_border", "at_dropoff", "delivered"])
+        .gte("loads.pickup_date", shiftDays(load.pickup_date, -14)).lte("loads.pickup_date", load.pickup_date).limit(500);
+      const { data: all } = await admin.from("places").select("id, lat, lng");
+      const at = new Map((all ?? []).map((p) => [p.id as string, p]));
+      type Row = { carrier_id: string; trucks: { truck_type: TruckType; capacity_tonnes: number } | null; loads: { id: string; origin_id: string; destination_id: string; pickup_date: string; truck_type: TruckType; distance_km: number; border_crossings: number } };
+      const home = new Set<string>();
+      for (const row of (trips ?? []) as unknown as Row[]) {
+        if (row.carrier_id === load.shipper_id || alongside.has(row.carrier_id)) continue;
+        if (!isReturnLoad(row.loads, load, at, row.trucks ?? { truck_type: row.loads.truck_type })) continue;
+        returning.add(row.carrier_id);
+        if (kmFromHome(row.loads, load, at) <= HOME_KM) home.add(row.carrier_id);
+      }
+      await Promise.all([...returning].slice(0, 30).map((id) => notifyUser(id, `Load for the way back: ${route}`,
+        `${route}, pickup ${load.pickup_date}, near where your truck unloads${home.has(id) ? " and heading back your way" : ""}. ${offer}.`, path, { key: `return-${loadId}-${id}` })));
+    }
+
     // Free trucks of the right type near the pickup: SMS first.
     const { data: free } = await admin.from("truck_availability").select("carrier_id, lat, lng, place_id, trucks!inner(truck_type, active), carriers!inner(status)")
       .eq("trucks.truck_type", load.truck_type).eq("trucks.active", true).eq("carriers.status", "verified").gt("expires_at", new Date().toISOString()).limit(500);
@@ -57,14 +78,14 @@ export async function announceLoad(loadId: string, options: { favourites?: boole
     const near = new Set<string>();
     for (const row of free ?? []) {
       const at = row.lat !== null && row.lng !== null ? { lat: row.lat as number, lng: row.lng as number } : placeById.get(row.place_id as string);
-      if (origin && at && straightLineKm(at, origin) <= NEAR_KM && !alongside.has(row.carrier_id as string)) near.add(row.carrier_id as string);
+      if (origin && at && straightLineKm(at, origin) <= NEAR_KM && !alongside.has(row.carrier_id as string) && !returning.has(row.carrier_id as string)) near.add(row.carrier_id as string);
     }
     await Promise.all([...near].slice(0, 30).map((id) => notifyUser(id, `Load near your free truck: ${route}`,
       `${route}, pickup ${load.pickup_date}. Your truck is close. ${offer} before another truck does.`, path, { sms: true, key: `near-${loadId}-${id}` })));
 
     // Everyone else with that truck type: push, or email when the app isn't installed.
     const { data: trucks } = await admin.from("trucks").select("carrier_id, carriers!inner(status)").eq("truck_type", load.truck_type).eq("active", true).eq("carriers.status", "verified").limit(300);
-    const others = [...new Set((trucks ?? []).map((row) => row.carrier_id as string))].filter((id) => !near.has(id) && !alongside.has(id) && id !== load.shipper_id).slice(0, 60);
+    const others = [...new Set((trucks ?? []).map((row) => row.carrier_id as string))].filter((id) => !near.has(id) && !alongside.has(id) && !returning.has(id) && id !== load.shipper_id).slice(0, 60);
     await Promise.all(others.map((id) => notifyUser(id, `New load: ${route}`, `${route}, pickup ${load.pickup_date}. ${offer}.`, path, { key: `load-${loadId}-${id}` })));
   } catch (error) {
     console.error("Carrier alerts failed", error);

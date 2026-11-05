@@ -9,6 +9,7 @@ import { requireRole } from "@/lib/auth";
 import { placeMap } from "@/lib/places";
 import { createClient } from "@/lib/supabase/server";
 import { COUNTRY_NAMES, TRUCK_TYPES, TRUCK_TYPE_KEYS } from "@/lib/pricing";
+import { returnLoadsFor } from "@/lib/return-loads";
 import type { Load } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Find loads" };
@@ -26,6 +27,9 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
     supabase.rpc("busy_lanes"),
     placeMap(),
   ]);
+  // My booked trips that haven't finished: each truck will need a load home from where it unloads.
+  const { data: active } = await supabase.from("trips").select("trucks(truck_type, capacity_tonnes), loads!inner(id, origin_id, destination_id, pickup_date, truck_type, distance_km, border_crossings)")
+    .eq("carrier_id", user.id).in("status", ["scheduled", "to_pickup", "at_pickup", "loaded", "in_transit", "at_border", "at_dropoff", "delivered"]).limit(30);
   const myTypes = [...new Set((trucks ?? []).map((t) => t.truck_type as string))];
   const truck = query.truck && query.truck in TRUCK_TYPES ? query.truck : query.all ? "" : "";
   let request = supabase.from("loads").select("*").eq("status", "open").order("pickup_date").limit(100);
@@ -39,7 +43,9 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
   const bids = new Map((myBids ?? []).map((b) => [b.load_id, b]));
   // Return loads: loads leaving the towns my free trucks are heading to (or are at), so trucks don't come back empty.
   const towns = new Set((free ?? []).flatMap((f) => [f.heading_to, f.place_id]).filter(Boolean) as string[]);
-  const returns = loads.filter((l) => towns.has(l.origin_id)).slice(0, 5);
+  type Active = { trucks: { truck_type: Load["truck_type"]; capacity_tonnes: number } | null; loads: Pick<Load, "id" | "origin_id" | "destination_id" | "pickup_date" | "truck_type" | "distance_km" | "border_crossings"> };
+  const forTrips = ((active ?? []) as unknown as Active[]).flatMap((t) => returnLoadsFor(t.loads, loads, places, t.trucks ?? { truck_type: t.loads.truck_type }).map((r) => r.load));
+  const returns = [...new Map([...forTrips, ...loads.filter((l) => towns.has(l.origin_id))].map((l) => [l.id, l])).values()].slice(0, 5);
   const busy = (lanes ?? []) as { origin_id: string; destination_country: string; open_loads: number; avg_price_per_km: number }[];
   const countries = Object.entries(COUNTRY_NAMES);
   return <div>
@@ -60,7 +66,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
       </div>)}</div>
       <p className="mt-2 text-xs text-muted-foreground">Mark a truck free in <Link href="/fleet" className="font-semibold text-primary">Fleet</Link> to be texted first when loads come up near it.</p>
     </section> : null}
-    {returns.length ? <section className="mb-6"><h2 className="mb-3 flex items-center gap-2 font-semibold"><RotateCcw className="h-4 w-4 text-primary" />Return loads for your free trucks</h2><div className="space-y-3">{returns.map((load) => <LoadCard key={load.id} load={load} places={places} href={`/board/${load.id}`} showStatus={false} />)}</div></section> : null}
+    {returns.length ? <section className="mb-6"><h2 className="mb-3 flex items-center gap-2 font-semibold"><RotateCcw className="h-4 w-4 text-primary" />Return loads for your trucks</h2><div className="space-y-3">{returns.map((load) => <LoadCard key={load.id} load={load} places={places} href={`/board/${load.id}`} showStatus={false} />)}</div></section> : null}
     {loads.length ? <div className="space-y-3">{loads.map((load) => {
       const bid = bids.get(load.id);
       return <LoadCard key={load.id} load={load} places={places} href={`/board/${load.id}`} showStatus={false}
