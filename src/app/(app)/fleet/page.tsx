@@ -65,7 +65,7 @@ export default async function FleetPage({ searchParams }: { searchParams: Promis
           <PhotoForm kind="truck" id={t.id} has={Boolean(t.photo_path)} lang={lang} />
         </div>;
       })}
-      <div className="rounded-lg border border-dashed p-4"><TruckForm /></div>
+      <div className="rounded-lg border border-dashed p-4"><TruckForm lang={lang} /></div>
     </section>
     <section className="space-y-4">
       <h2 className="flex items-center gap-2 font-semibold"><UserRound className="h-5 w-5 text-primary" />{tr("fleet.drivers")}</h2>
@@ -95,7 +95,7 @@ export default async function FleetPage({ searchParams }: { searchParams: Promis
             </form></details>
         </div>;
       })}
-      <div className="rounded-lg border border-dashed p-4"><DriverForm /></div>
+      <div className="rounded-lg border border-dashed p-4"><DriverForm lang={lang} /></div>
     </section>
   </div>;
 }

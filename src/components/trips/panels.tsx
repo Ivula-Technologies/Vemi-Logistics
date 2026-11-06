@@ -25,6 +25,7 @@ import { displayPhone } from "@/lib/phone";
 import { percent } from "@/lib/commission";
 import { formatDate, formatDateTime, formatKes } from "@/lib/utils";
 import { translator, type AppLang } from "@/lib/i18n";
+import { stepLabel } from "@/lib/driver-i18n";
 import type { TripView } from "@/lib/trip-view";
 import { FileInput } from "@/components/app/file-input";
 
@@ -205,7 +206,7 @@ export function CarrierMove({ view, lang = "en" }: { view: TripView; lang?: AppL
     <p className="mb-3 text-sm text-muted-foreground">{tr("ta.updateHint")}{load.require_codes ? tr("ta.codesHint") : ""}</p>
     {onRoad && open.length ? <ul className="mb-4 space-y-2">{open.map((stop) => <li key={stop.id} className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"><span>{tr("ta.stop", { n: stop.seq })}{stop.kind === "pickup" ? tr("ta.pickAt") : tr("ta.dropAt")} {stop.detail || view.places.get(stop.place_id)?.name}</span>
       <form action={carrierStopDone}><Hidden tripId={trip.id} /><input type="hidden" name="seq" value={stop.seq} /><SubmitButton size="sm" variant="outline" pendingLabel="…">{tr("ta.done")}</SubmitButton></form></li>)}</ul> : null}
-    <CarrierStatusButtons tripId={trip.id} steps={steps} action={carrierUpdateTrip} requireCodes={load.require_codes} />
+    <CarrierStatusButtons tripId={trip.id} steps={lang === "en" ? steps : steps.map((step) => ({ ...step, label: stepLabel("sw", step.status, trip.status) }))} action={carrierUpdateTrip} requireCodes={load.require_codes} lang={lang} />
   </Panel>;
 }
 
@@ -224,7 +225,7 @@ export function CarrierExtras({ view, lang = "en" }: { view: TripView; lang?: Ap
       {canAdvance ? <div><p className="mb-1 flex items-center gap-1.5 font-semibold"><Fuel className="h-4 w-4 text-primary" />{tr("ta.advance")}</p><p className="mb-2 text-xs text-muted-foreground">{tr("ta.advanceHint", { max: formatKes(maxAdvance), fee: percent(settings?.fuel_advance_fee_bps ?? 300) })}</p>
         <form action={requestFuelAdvance} className="flex gap-2"><Hidden tripId={trip.id} /><Input name="amount" type="number" min="1000" max={maxAdvance} defaultValue={maxAdvance} aria-label="Advance amount" /><SubmitButton variant="outline" pendingLabel="…">{tr("ta.request")}</SubmitButton></form></div>
         : trip.advance_amount ? <p className="flex items-center gap-1.5"><Fuel className="h-4 w-4 text-primary" />{tr("ta.advanceSent", { amount: formatKes(trip.advance_amount - trip.advance_fee), fee: formatKes(trip.advance_fee) })}</p> : null}
-      {trip.status !== "delivered" ? <div><p className="mb-2 font-semibold">{tr("ta.extraCharge")}</p><ChargeForm tripId={trip.id} /><p className="mt-1 text-xs text-muted-foreground">{tr("ta.waitingHint", { hours: view.settings?.free_waiting_hours ?? 3 })}</p></div> : null}
+      {trip.status !== "delivered" ? <div><p className="mb-2 font-semibold">{tr("ta.extraCharge")}</p><ChargeForm tripId={trip.id} lang={lang} /><p className="mt-1 text-xs text-muted-foreground">{tr("ta.waitingHint", { hours: view.settings?.free_waiting_hours ?? 3 })}</p></div> : null}
     </div>
   </Panel>;
 }
