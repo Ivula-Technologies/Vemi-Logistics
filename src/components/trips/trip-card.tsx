@@ -4,14 +4,15 @@ import { TripStatusBadge } from "@/components/app/status-badge";
 import { RouteLine } from "@/components/loads/load-card";
 import { formatDate, formatKes } from "@/lib/utils";
 import type { Load, PlaceRow, Trip } from "@/lib/types";
+import { formatDateIn, t, type AppLang, type MessageKey } from "@/lib/i18n";
 
 const NEXT_FOR: Record<"shipper" | "carrier", Partial<Record<string, string>>> = {
   shipper: { awaiting_payment: "Pay to dispatch the truck", delivered: "Confirm delivery" },
   carrier: { awaiting_payment: "Assign truck and driver while the shipper pays", scheduled: "Dispatch: send the driver to pickup", completed: "Payout queued" },
 };
 
-export function TripCard({ trip, places, viewer }: { trip: Trip & { loads: Pick<Load, "origin_id" | "destination_id" | "pickup_date" | "cargo_description"> | null }; places: Map<string, PlaceRow>; viewer: "shipper" | "carrier" | "admin" }) {
-  const next = viewer === "admin" ? undefined : NEXT_FOR[viewer][trip.status];
+export function TripCard({ trip, places, viewer, lang = "en" }: { trip: Trip & { loads: Pick<Load, "origin_id" | "destination_id" | "pickup_date" | "cargo_description"> | null }; places: Map<string, PlaceRow>; viewer: "shipper" | "carrier" | "admin"; lang?: AppLang }) {
+  const next = viewer === "admin" ? undefined : viewer === "carrier" && NEXT_FOR.carrier[trip.status] ? t(lang, `card.next.${trip.status}` as MessageKey) : NEXT_FOR[viewer][trip.status];
   return <Link href={`/trips/${trip.id}`} className="block rounded-lg border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-secondary/40">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
@@ -21,10 +22,10 @@ export function TripCard({ trip, places, viewer }: { trip: Trip & { loads: Pick<
       <p className="shrink-0 font-bold">{formatKes(viewer === "carrier" ? trip.carrier_payout + trip.extras - trip.extras_commission : trip.total_due)}</p>
     </div>
     <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-      <TripStatusBadge status={trip.status} />
-      <span className="inline-flex items-center gap-1.5 text-muted-foreground"><CalendarDays className="h-4 w-4" />{formatDate(trip.loads?.pickup_date)}</span>
+      <TripStatusBadge status={trip.status} lang={lang} />
+      <span className="inline-flex items-center gap-1.5 text-muted-foreground"><CalendarDays className="h-4 w-4" />{lang === "en" ? formatDate(trip.loads?.pickup_date) : formatDateIn(lang, trip.loads?.pickup_date)}</span>
       {next ? <span className="font-semibold text-primary">{next} →</span> : null}
-      {trip.sos_at ? <span className="font-semibold text-destructive">SOS</span> : trip.alert ? <span className="font-semibold text-amber-700 dark:text-amber-400">Check on the truck</span> : null}
+      {trip.sos_at ? <span className="font-semibold text-destructive">SOS</span> : trip.alert ? <span className="font-semibold text-amber-700 dark:text-amber-400">{t(lang, "card.check")}</span> : null}
     </div>
   </Link>;
 }

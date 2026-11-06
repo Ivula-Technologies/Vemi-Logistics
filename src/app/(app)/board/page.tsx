@@ -9,14 +9,18 @@ import { requireRole } from "@/lib/auth";
 import { placeMap } from "@/lib/places";
 import { createClient } from "@/lib/supabase/server";
 import { COUNTRY_NAMES, TRUCK_TYPES, TRUCK_TYPE_KEYS } from "@/lib/pricing";
+import { returnLoadsFor } from "@/lib/return-loads";
+import { getLang } from "@/lib/i18n-server";
+import { translator, type MessageKey } from "@/lib/i18n";
 import type { Load } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Find loads" };
 
 export default async function BoardPage({ searchParams }: { searchParams: Promise<{ truck?: string; from?: string; to?: string; all?: string; instant?: string; part?: string }> }) {
-  const [{ user, carrier }, query] = await Promise.all([requireRole("carrier"), searchParams]);
+  const [{ user, carrier }, query, lang] = await Promise.all([requireRole("carrier"), searchParams, getLang()]);
+  const tr = translator(lang);
   if (carrier?.status !== "verified") {
-    return <div><PageHeader title="Find loads" /><EmptyState icon={<ShieldAlert className="h-5 w-5" />} title="You&apos;ll see loads once you&apos;re verified" description="Add your trucks, a driver and your documents. Vemi checks them within one working day." action={<Button asChild><Link href="/home">See what&apos;s left to do</Link></Button>} /></div>;
+    return <div><PageHeader title={tr("board.title")} /><EmptyState icon={<ShieldAlert className="h-5 w-5" />} title={tr("board.notVerified")} description={tr("board.notVerifiedHint")} action={<Button asChild><Link href="/home">{tr("board.whatsLeft")}</Link></Button>} /></div>;
   }
   const supabase = await createClient();
   const [{ data: trucks }, { data: myBids }, { data: free }, { data: lanes }, places] = await Promise.all([
@@ -26,6 +30,9 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
     supabase.rpc("busy_lanes"),
     placeMap(),
   ]);
+  // My booked trips that haven't finished: each truck will need a load home from where it unloads.
+  const { data: active } = await supabase.from("trips").select("trucks(truck_type, capacity_tonnes), loads!inner(id, origin_id, destination_id, pickup_date, truck_type, distance_km, border_crossings)")
+    .eq("carrier_id", user.id).in("status", ["scheduled", "to_pickup", "at_pickup", "loaded", "in_transit", "at_border", "at_dropoff", "delivered"]).limit(30);
   const myTypes = [...new Set((trucks ?? []).map((t) => t.truck_type as string))];
   const truck = query.truck && query.truck in TRUCK_TYPES ? query.truck : query.all ? "" : "";
   let request = supabase.from("loads").select("*").eq("status", "open").order("pickup_date").limit(100);
@@ -39,32 +46,34 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
   const bids = new Map((myBids ?? []).map((b) => [b.load_id, b]));
   // Return loads: loads leaving the towns my free trucks are heading to (or are at), so trucks don't come back empty.
   const towns = new Set((free ?? []).flatMap((f) => [f.heading_to, f.place_id]).filter(Boolean) as string[]);
-  const returns = loads.filter((l) => towns.has(l.origin_id)).slice(0, 5);
+  type Active = { trucks: { truck_type: Load["truck_type"]; capacity_tonnes: number } | null; loads: Pick<Load, "id" | "origin_id" | "destination_id" | "pickup_date" | "truck_type" | "distance_km" | "border_crossings"> };
+  const forTrips = ((active ?? []) as unknown as Active[]).flatMap((t) => returnLoadsFor(t.loads, loads, places, t.trucks ?? { truck_type: t.loads.truck_type }).map((r) => r.load));
+  const returns = [...new Map([...forTrips, ...loads.filter((l) => towns.has(l.origin_id))].map((l) => [l.id, l])).values()].slice(0, 5);
   const busy = (lanes ?? []) as { origin_id: string; destination_country: string; open_loads: number; avg_price_per_km: number }[];
   const countries = Object.entries(COUNTRY_NAMES);
   return <div>
-    <PageHeader title="Find loads" description={myTypes.length && !truck && !query.all ? `Showing loads for your trucks (${myTypes.map((t) => TRUCK_TYPES[t as keyof typeof TRUCK_TYPES]?.short).join(", ")}).` : "Open loads from shippers across the region."} />
+    <PageHeader title={tr("board.title")} description={myTypes.length && !truck && !query.all ? tr("board.forMyTrucks", { types: myTypes.map((t) => TRUCK_TYPES[t as keyof typeof TRUCK_TYPES]?.short).join(", ") }) : tr("board.all")} />
     <form className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-      <select name="truck" defaultValue={truck} className={selectClass} aria-label="Truck type"><option value="">My truck types</option>{TRUCK_TYPE_KEYS.map((k) => <option key={k} value={k}>{TRUCK_TYPES[k].short}</option>)}</select>
-      <select name="from" defaultValue={query.from ?? ""} className={selectClass} aria-label="From country"><option value="">From anywhere</option>{countries.map(([code, name]) => <option key={code} value={code}>From {name}</option>)}</select>
-      <select name="to" defaultValue={query.to ?? ""} className={selectClass} aria-label="To country"><option value="">To anywhere</option>{countries.map(([code, name]) => <option key={code} value={code}>To {name}</option>)}</select>
-      <Button type="submit" variant="outline"><Search className="mr-2 h-4 w-4" />Filter</Button>
-      <label className="col-span-2 flex items-center gap-2 text-sm sm:col-span-4"><input type="checkbox" name="instant" value="1" defaultChecked={Boolean(query.instant)} className="accent-[hsl(var(--primary))]" />Only loads I can book now at the shipper&apos;s price</label>
-      <label className="col-span-2 flex items-center gap-2 text-sm sm:col-span-4"><input type="checkbox" name="part" value="1" defaultChecked={Boolean(query.part)} className="accent-[hsl(var(--primary))]" />Only part loads (fill the space left on a truck)</label>
+      <select name="truck" defaultValue={truck} className={selectClass} aria-label="Truck type"><option value="">{tr("board.myTypes")}</option>{TRUCK_TYPE_KEYS.map((k) => <option key={k} value={k}>{TRUCK_TYPES[k].short}</option>)}</select>
+      <select name="from" defaultValue={query.from ?? ""} className={selectClass} aria-label="From country"><option value="">{tr("board.fromAnywhere")}</option>{countries.map(([code, name]) => <option key={code} value={code}>{tr("board.from", { country: name })}</option>)}</select>
+      <select name="to" defaultValue={query.to ?? ""} className={selectClass} aria-label="To country"><option value="">{tr("board.toAnywhere")}</option>{countries.map(([code, name]) => <option key={code} value={code}>{tr("board.to", { country: name })}</option>)}</select>
+      <Button type="submit" variant="outline"><Search className="mr-2 h-4 w-4" />{tr("board.filter")}</Button>
+      <label className="col-span-2 flex items-center gap-2 text-sm sm:col-span-4"><input type="checkbox" name="instant" value="1" defaultChecked={Boolean(query.instant)} className="accent-[hsl(var(--primary))]" />{tr("board.instant")}</label>
+      <label className="col-span-2 flex items-center gap-2 text-sm sm:col-span-4"><input type="checkbox" name="part" value="1" defaultChecked={Boolean(query.part)} className="accent-[hsl(var(--primary))]" />{tr("board.part")}</label>
     </form>
     {busy.length ? <section className="mb-6 rounded-lg border bg-card p-4">
-      <h2 className="flex items-center gap-2 text-sm font-semibold"><Flame className="h-4 w-4 text-primary" />Busy lanes this week</h2>
+      <h2 className="flex items-center gap-2 text-sm font-semibold"><Flame className="h-4 w-4 text-primary" />{tr("board.busy")}</h2>
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{busy.map((lane) => <div key={`${lane.origin_id}-${lane.destination_country}`} className="min-w-40 rounded-md bg-secondary px-3 py-2 text-xs">
         <p className="font-semibold">{places.get(lane.origin_id)?.name} → {COUNTRY_NAMES[lane.destination_country] ?? lane.destination_country}</p>
-        <p className="text-muted-foreground">{lane.open_loads} load{lane.open_loads > 1 ? "s" : ""} · about KES {lane.avg_price_per_km}/km</p>
+        <p className="text-muted-foreground">{lane.open_loads > 1 ? tr("board.laneLoads", { count: lane.open_loads, rate: lane.avg_price_per_km }) : tr("board.laneLoad", { rate: lane.avg_price_per_km })}</p>
       </div>)}</div>
-      <p className="mt-2 text-xs text-muted-foreground">Mark a truck free in <Link href="/fleet" className="font-semibold text-primary">Fleet</Link> to be texted first when loads come up near it.</p>
+      <p className="mt-2 text-xs text-muted-foreground">{tr("board.markFree", { fleet: "@@" }).split("@@")[0]}<Link href="/fleet" className="font-semibold text-primary">{tr("nav.fleet")}</Link>{tr("board.markFree", { fleet: "@@" }).split("@@")[1]}</p>
     </section> : null}
-    {returns.length ? <section className="mb-6"><h2 className="mb-3 flex items-center gap-2 font-semibold"><RotateCcw className="h-4 w-4 text-primary" />Return loads for your free trucks</h2><div className="space-y-3">{returns.map((load) => <LoadCard key={load.id} load={load} places={places} href={`/board/${load.id}`} showStatus={false} />)}</div></section> : null}
+    {returns.length ? <section className="mb-6"><h2 className="mb-3 flex items-center gap-2 font-semibold"><RotateCcw className="h-4 w-4 text-primary" />{tr("board.returns")}</h2><div className="space-y-3">{returns.map((load) => <LoadCard key={load.id} load={load} places={places} href={`/board/${load.id}`} showStatus={false} lang={lang} />)}</div></section> : null}
     {loads.length ? <div className="space-y-3">{loads.map((load) => {
       const bid = bids.get(load.id);
-      return <LoadCard key={load.id} load={load} places={places} href={`/board/${load.id}`} showStatus={false}
-        extra={bid ? <p className="text-sm font-medium text-primary">Your bid: KES {bid.amount.toLocaleString("en-KE")} ({bid.status})</p> : null} />;
-    })}</div> : <EmptyState title="No open loads match" description="New loads come in through the day, and we email you when one fits your trucks." action={!query.all ? <Button variant="outline" asChild><Link href="/board?all=1">Show all truck types</Link></Button> : null} />}
+      return <LoadCard key={load.id} load={load} places={places} href={`/board/${load.id}`} showStatus={false} lang={lang}
+        extra={bid ? <p className="text-sm font-medium text-primary">{tr("board.yourBid", { amount: bid.amount.toLocaleString("en-KE"), status: tr(`bid.${bid.status}` as MessageKey) })}</p> : null} />;
+    })}</div> : <EmptyState title={tr("board.none")} description={tr("board.noneHint")} action={!query.all ? <Button variant="outline" asChild><Link href="/board?all=1">{tr("board.showAll")}</Link></Button> : null} />}
   </div>;
 }
