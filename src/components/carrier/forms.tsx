@@ -8,6 +8,7 @@ import { updateAccount } from "@/app/actions/auth";
 import { COUNTRY_NAMES, TRUCK_TYPES, TRUCK_TYPE_KEYS } from "@/lib/pricing";
 import { idleState, type Carrier, type CarrierPrivate, type Profile } from "@/lib/types";
 import { displayPhone } from "@/lib/phone";
+import { t, type AppLang } from "@/lib/i18n";
 
 function useResetOnSuccess(status: string) {
   const ref = useRef<HTMLFormElement>(null);
@@ -15,29 +16,29 @@ function useResetOnSuccess(status: string) {
   return ref;
 }
 
-export function TruckForm() {
+export function TruckForm({ lang = "en" }: { lang?: AppLang } = {}) {
   const [state, action] = useActionState(addTruck, idleState);
   const ref = useResetOnSuccess(state.status);
   const e = state.fieldErrors ?? {};
   return <form ref={ref} action={action} className="grid gap-3 sm:grid-cols-2">
-    <Field label="Number plate" htmlFor="plate" error={e.plate}><Input id="plate" name="plate" placeholder="KDA 123A" autoCapitalize="characters" required /></Field>
-    <Field label="Type" htmlFor="truckType" error={e.truckType}><select id="truckType" name="truckType" className={selectClass} defaultValue="trailer">{TRUCK_TYPE_KEYS.map((k) => <option key={k} value={k}>{TRUCK_TYPES[k].label}</option>)}</select></Field>
-    <Field label="Capacity (tonnes)" htmlFor="capacityTonnes" error={e.capacityTonnes}><Input id="capacityTonnes" name="capacityTonnes" type="number" step="0.5" min="0.5" max="80" required /></Field>
-    <Field label="Make and model (optional)" htmlFor="makeModel" error={e.makeModel}><Input id="makeModel" name="makeModel" placeholder="e.g. Mercedes Actros 2014" /></Field>
-    <div className="space-y-2 sm:col-span-2"><FormMessage state={state} /><SubmitButton pendingLabel="Adding…">Add truck</SubmitButton></div>
+    <Field label={t(lang, "form.plate")} htmlFor="plate" error={e.plate}><Input id="plate" name="plate" placeholder="KDA 123A" autoCapitalize="characters" required /></Field>
+    <Field label={t(lang, "form.type")} htmlFor="truckType" error={e.truckType}><select id="truckType" name="truckType" className={selectClass} defaultValue="trailer">{TRUCK_TYPE_KEYS.map((k) => <option key={k} value={k}>{TRUCK_TYPES[k].label}</option>)}</select></Field>
+    <Field label={t(lang, "form.capacity")} htmlFor="capacityTonnes" error={e.capacityTonnes}><Input id="capacityTonnes" name="capacityTonnes" type="number" step="0.5" min="0.5" max="80" required /></Field>
+    <Field label={t(lang, "form.makeModel")} htmlFor="makeModel" error={e.makeModel}><Input id="makeModel" name="makeModel" placeholder={t(lang, "form.makeModelPlaceholder")} /></Field>
+    <div className="space-y-2 sm:col-span-2"><FormMessage state={state} /><SubmitButton pendingLabel={t(lang, "form.adding")}>{t(lang, "form.addTruck")}</SubmitButton></div>
   </form>;
 }
 
-export function DriverForm() {
+export function DriverForm({ lang = "en" }: { lang?: AppLang } = {}) {
   const [state, action] = useActionState(addDriver, idleState);
   const ref = useResetOnSuccess(state.status);
   const e = state.fieldErrors ?? {};
   return <form ref={ref} action={action} className="grid gap-3 sm:grid-cols-3">
-    <Field label="Driver's name" htmlFor="fullName" error={e.fullName}><Input id="fullName" name="fullName" required /></Field>
-    <Field label="Mobile number" htmlFor="dphone" error={e.phone}><Input id="dphone" name="phone" type="tel" placeholder="0712 345 678" required /></Field>
-    <Field label="Licence number (optional)" htmlFor="licenceNo" error={e.licenceNo}><Input id="licenceNo" name="licenceNo" /></Field>
-    <Field label="Driver's language" htmlFor="language" hint="Their trip page and texts use it."><select id="language" name="language" className={selectClass} defaultValue="sw"><option value="sw">Kiswahili</option><option value="en">English</option></select></Field>
-    <div className="space-y-2 sm:col-span-3"><FormMessage state={state} /><SubmitButton pendingLabel="Adding…">Add driver</SubmitButton></div>
+    <Field label={t(lang, "form.driverName")} htmlFor="fullName" error={e.fullName}><Input id="fullName" name="fullName" required /></Field>
+    <Field label={t(lang, "form.mobile")} htmlFor="dphone" error={e.phone}><Input id="dphone" name="phone" type="tel" placeholder="0712 345 678" required /></Field>
+    <Field label={t(lang, "form.licence")} htmlFor="licenceNo" error={e.licenceNo}><Input id="licenceNo" name="licenceNo" /></Field>
+    <Field label={t(lang, "form.driverLang")} htmlFor="language" hint={t(lang, "form.driverLangHint")}><select id="language" name="language" className={selectClass} defaultValue="sw"><option value="sw">Kiswahili</option><option value="en">English</option></select></Field>
+    <div className="space-y-2 sm:col-span-3"><FormMessage state={state} /><SubmitButton pendingLabel={t(lang, "form.adding")}>{t(lang, "form.addDriver")}</SubmitButton></div>
   </form>;
 }
 
