@@ -9,6 +9,9 @@ psql_q() { psql -X -q -v ON_ERROR_STOP=1 -d "$db" "$@"; }
 
 dropdb --if-exists "$db" >/dev/null 2>&1 || true
 createdb "$db"
+# Vemi's dates are Nairobi dates (private.eat_today()). Run the tests in that time zone so current_date in the
+# tests matches, including between 21:00 and midnight UTC when the two days differ.
+psql -X -q -d "$db" -c "alter database \"$db\" set timezone = 'Africa/Nairobi'"
 psql_q -f tests/supabase-shim.sql
 for migration in migrations/*.sql; do
   psql_q -1 -f "$migration"
