@@ -1,0 +1,47 @@
+name: Play bundle hand-off (temporary)
+
+# Temporary: builds the Google Play app bundle once (unsigned, version code 1) and stores it at the
+# git ref refs/android-builds/play so it can be signed with the upload key outside GitHub.
+# Removed again in the next commit on this branch.
+on:
+  push:
+    paths:
+      - '.github/workflows/play-bundle-handoff.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Generate the Android project
+        env:
+          VERSION_CODE: '1'
+        run: node build-project.mjs
+      - name: Build the app bundle
+        working-directory: android/build/project
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon --stacktrace
+      - name: Store the unsigned bundle at refs/android-builds/play
+        run: |
+          aab=build/project/app/build/outputs/bundle/release/app-release.aab
+          ls -l "$aab"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          blob=$(git hash-object -w "$aab")
+          tree=$(printf '100644 blob %s\tapp-release-unsigned.aab\n' "$blob" | git mktree)
+          commit=$(git commit-tree "$tree" -m "Unsigned Play bundle from ${GITHUB_SHA}")
+          git push -f origin "$commit:refs/android-builds/play"
