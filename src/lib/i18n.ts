@@ -120,7 +120,7 @@ const en = {
   "pf.payout": "M-Pesa number for payouts", "pf.payoutHint": "Payouts go only to this number.", "pf.payoutName": "Name registered on that M-Pesa line", "pf.countries": "Countries you can drive to",
   "pf.crossBorder": "I have the permits and COMESA Yellow Card for cross-border trips", "pf.saving": "Saving…", "pf.saveChanges": "Save changes", "pf.saveContinue": "Save and continue",
   "pf.company": "Company", "pf.save": "Save",
-  "prof.upload": "Upload", "prof.uploading": "Uploading…",
+  "prof.upload": "Upload", "prof.uploading": "Uploading…", "prof.deleteAccount": "Delete my account",
   "doc.national_id": "National ID or passport", "doc.kra_pin": "KRA PIN certificate", "doc.logbook": "Vehicle logbook (or lease)", "doc.inspection": "NTSA inspection certificate",
   "doc.git_insurance": "Goods-in-transit insurance", "doc.driving_licence": "Driving licence (class C/CE)", "doc.yellow_card": "COMESA Yellow Card (cross-border)", "doc.good_conduct": "Police certificate of good conduct", "doc.other": "Other",
   // Trip statuses
@@ -231,7 +231,7 @@ const sw: Record<MessageKey, string> = {
   "pf.payout": "Nambari ya M-Pesa ya malipo", "pf.payoutHint": "Malipo huenda kwa nambari hii tu.", "pf.payoutName": "Jina lililosajiliwa kwenye laini hiyo ya M-Pesa", "pf.countries": "Nchi unazoweza kuendesha",
   "pf.crossBorder": "Nina vibali na COMESA Yellow Card kwa safari za kuvuka mpaka", "pf.saving": "Inahifadhi…", "pf.saveChanges": "Hifadhi mabadiliko", "pf.saveContinue": "Hifadhi na uendelee",
   "pf.company": "Kampuni", "pf.save": "Hifadhi",
-  "prof.upload": "Pakia", "prof.uploading": "Inapakia…",
+  "prof.upload": "Pakia", "prof.uploading": "Inapakia…", "prof.deleteAccount": "Futa akaunti yangu",
   "doc.national_id": "Kitambulisho au pasipoti", "doc.kra_pin": "Cheti cha PIN ya KRA", "doc.logbook": "Kadi ya gari (logbook) au mkataba wa kukodi", "doc.inspection": "Cheti cha ukaguzi cha NTSA",
   "doc.git_insurance": "Bima ya mizigo safarini (GIT)", "doc.driving_licence": "Leseni ya udereva (daraja C/CE)", "doc.yellow_card": "COMESA Yellow Card (kuvuka mpaka)", "doc.good_conduct": "Cheti cha tabia njema cha polisi", "doc.other": "Nyingine",
   "status.awaiting_payment": "Inasubiri malipo", "status.scheduled": "Imelipwa, gari limepangwa", "status.to_pickup": "Linaelekea kupakia", "status.at_pickup": "Liko kupakia",

@@ -82,5 +82,6 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       <ShareReferral code={profile.referral_code} url={`${(process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "")}/signup?ref=${profile.referral_code}`} />
     </section> : null}
     <InstallAppButton label="Install the Vemi app on this phone" />
+    <p className="text-center text-xs"><a href="/delete-account" className="text-muted-foreground underline-offset-4 hover:underline">{t(lang, "prof.deleteAccount")}</a></p>
   </div>;
 }
