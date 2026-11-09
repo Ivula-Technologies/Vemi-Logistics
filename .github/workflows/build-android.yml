@@ -1,0 +1,74 @@
+name: Build Android App
+
+# Builds the Google Play app bundle (android/README.md, "The Google Play app"). Run it by hand from the
+# Actions tab before each Play upload, then download the "android-app" artifact.
+# Pull requests that touch android/ build it too, unsigned, to catch breakage.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-android.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: android/package-lock.json
+
+      - run: npm ci
+
+      - name: Generate the Android project
+        env:
+          # Every Play upload needs a higher version code than the last one.
+          VERSION_CODE: ${{ github.run_number }}
+        run: node build-project.mjs
+
+      - name: Build the app bundle
+        working-directory: android/build/project
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon --stacktrace
+
+      - name: Sign with the upload key
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ANDROID_UPLOAD_KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_UPLOAD_KEYSTORE" ] || [ -z "$ANDROID_UPLOAD_KEYSTORE_PASSWORD" ]; then
+            echo "::error::Add the ANDROID_UPLOAD_KEYSTORE and ANDROID_UPLOAD_KEYSTORE_PASSWORD repository secrets (android/README.md)."
+            exit 1
+          fi
+          echo "$ANDROID_UPLOAD_KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          aab=build/project/app/build/outputs/bundle/release/app-release.aab
+          jarsigner -keystore "$RUNNER_TEMP/upload.jks" -storepass "$ANDROID_UPLOAD_KEYSTORE_PASSWORD" "$aab" upload
+          jarsigner -verify "$aab" | tail -1
+          mkdir -p build/out
+          cp "$aab" "build/out/$(jq -r .packageId twa-manifest.json)-${{ github.run_number }}.aab"
+          rm -f "$RUNNER_TEMP/upload.jks"
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: android-app
+          path: android/build/out/*.aab
+          if-no-files-found: error
+          retention-days: 30

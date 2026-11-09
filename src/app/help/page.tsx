@@ -47,7 +47,7 @@ export default function HelpPage() {
     <Section title="For shippers" items={SHIPPERS} />
     <Section title="For truck owners" items={CARRIERS} />
     <Section title="Kwa madereva (for drivers)" items={DRIVERS} />
-    <p className="mt-10 text-sm text-muted-foreground">See also the <Link className="font-semibold text-primary" href="/terms">terms</Link> and <Link className="font-semibold text-primary" href="/privacy">privacy notice</Link>.</p>
+    <p className="mt-10 text-sm text-muted-foreground">See also the <Link className="font-semibold text-primary" href="/terms">terms</Link> and <Link className="font-semibold text-primary" href="/privacy">privacy notice</Link>, and how to <Link className="font-semibold text-primary" href="/delete-account">delete your account</Link>.</p>
   </div>;
 }
 

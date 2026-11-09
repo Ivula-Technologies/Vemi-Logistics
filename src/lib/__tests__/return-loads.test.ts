@@ -58,3 +58,18 @@ describe("Kiswahili", () => {
     expect(tripStatusLabel("sw", "unknown")).toBe("unknown");
   });
 });
+
+describe("Kiswahili sign-up and profile", () => {
+  it("names every carrier document in both languages", async () => {
+    const { DOCUMENT_KINDS } = await import("@/lib/trips");
+    const { t } = await import("@/lib/i18n");
+    for (const k of Object.keys(DOCUMENT_KINDS) as (keyof typeof DOCUMENT_KINDS)[]) {
+      expect(t("en", `doc.${k}`)).toBe(DOCUMENT_KINDS[k]);
+      expect(t("sw", `doc.${k}`)).not.toBe(`doc.${k}`);
+    }
+  });
+  it("keeps both links in the terms sentence", async () => {
+    const { t } = await import("@/lib/i18n");
+    for (const lang of ["en", "sw"] as const) expect(t(lang, "auth.agree", { terms: "@@", privacy: "@@" }).split("@@")).toHaveLength(3);
+  });
+});

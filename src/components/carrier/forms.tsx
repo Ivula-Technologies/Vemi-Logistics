@@ -42,34 +42,34 @@ export function DriverForm({ lang = "en" }: { lang?: AppLang } = {}) {
   </form>;
 }
 
-export function CarrierProfileForm({ carrier, details, fallbackName, fallbackPhone }: { carrier: Carrier | null; details: CarrierPrivate | null; fallbackName: string; fallbackPhone: string | null }) {
+export function CarrierProfileForm({ carrier, details, fallbackName, fallbackPhone, lang = "en" }: { carrier: Carrier | null; details: CarrierPrivate | null; fallbackName: string; fallbackPhone: string | null; lang?: AppLang }) {
   const [state, action] = useActionState(saveCarrierProfile, idleState);
   const e = state.fieldErrors ?? {};
   const countries = new Set(carrier?.countries ?? ["KE"]);
   return <form action={action} className="grid gap-4 sm:grid-cols-2">
-    <Field label="Business or trading name" htmlFor="businessName" error={e.businessName}><Input id="businessName" name="businessName" defaultValue={carrier?.business_name ?? fallbackName} required /></Field>
-    <Field label="Where your trucks are based" htmlFor="baseTown" error={e.baseTown}><Input id="baseTown" name="baseTown" defaultValue={carrier?.base_town ?? ""} placeholder="e.g. Mombasa" /></Field>
-    <Field label="KRA PIN" htmlFor="kraPin" error={e.kraPin}><Input id="kraPin" name="kraPin" defaultValue={details?.kra_pin ?? ""} placeholder="A012345678B" autoCapitalize="characters" /></Field>
-    <Field label="National ID or passport number" htmlFor="idNumber" error={e.idNumber}><Input id="idNumber" name="idNumber" defaultValue={details?.id_number ?? ""} /></Field>
-    <Field label="M-Pesa number for payouts" htmlFor="payoutPhone" error={e.payoutPhone} hint="Payouts go only to this number."><Input id="payoutPhone" name="payoutPhone" type="tel" defaultValue={displayPhone(details?.payout_phone ?? fallbackPhone)} required /></Field>
-    <Field label="Name registered on that M-Pesa line" htmlFor="payoutName" error={e.payoutName}><Input id="payoutName" name="payoutName" defaultValue={details?.payout_name ?? ""} required /></Field>
+    <Field label={t(lang, "pf.businessName")} htmlFor="businessName" error={e.businessName}><Input id="businessName" name="businessName" defaultValue={carrier?.business_name ?? fallbackName} required /></Field>
+    <Field label={t(lang, "pf.base")} htmlFor="baseTown" error={e.baseTown}><Input id="baseTown" name="baseTown" defaultValue={carrier?.base_town ?? ""} placeholder={t(lang, "pf.basePlaceholder")} /></Field>
+    <Field label={t(lang, "pf.kra")} htmlFor="kraPin" error={e.kraPin}><Input id="kraPin" name="kraPin" defaultValue={details?.kra_pin ?? ""} placeholder="A012345678B" autoCapitalize="characters" /></Field>
+    <Field label={t(lang, "pf.id")} htmlFor="idNumber" error={e.idNumber}><Input id="idNumber" name="idNumber" defaultValue={details?.id_number ?? ""} /></Field>
+    <Field label={t(lang, "pf.payout")} htmlFor="payoutPhone" error={e.payoutPhone} hint={t(lang, "pf.payoutHint")}><Input id="payoutPhone" name="payoutPhone" type="tel" defaultValue={displayPhone(details?.payout_phone ?? fallbackPhone)} required /></Field>
+    <Field label={t(lang, "pf.payoutName")} htmlFor="payoutName" error={e.payoutName}><Input id="payoutName" name="payoutName" defaultValue={details?.payout_name ?? ""} required /></Field>
     <fieldset className="sm:col-span-2">
-      <legend className="text-sm font-medium">Countries you can drive to</legend>
+      <legend className="text-sm font-medium">{t(lang, "pf.countries")}</legend>
       <div className="mt-2 flex flex-wrap gap-2">{Object.entries(COUNTRY_NAMES).map(([code, name]) => <label key={code} className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm has-[:checked]:border-primary has-[:checked]:bg-signal-soft"><input type="checkbox" name="countries" value={code} defaultChecked={countries.has(code)} className="accent-[hsl(var(--primary))]" />{name}</label>)}</div>
       {e.countries ? <p className="mt-1 text-xs text-destructive">{e.countries[0]}</p> : null}
-      <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" name="crossBorder" defaultChecked={carrier?.cross_border ?? false} className="accent-[hsl(var(--primary))]" />I have the permits and COMESA Yellow Card for cross-border trips</label>
+      <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" name="crossBorder" defaultChecked={carrier?.cross_border ?? false} className="accent-[hsl(var(--primary))]" />{t(lang, "pf.crossBorder")}</label>
     </fieldset>
-    <div className="space-y-2 sm:col-span-2"><FormMessage state={state} /><SubmitButton pendingLabel="Saving…">{carrier ? "Save changes" : "Save and continue"}</SubmitButton></div>
+    <div className="space-y-2 sm:col-span-2"><FormMessage state={state} /><SubmitButton pendingLabel={t(lang, "pf.saving")}>{carrier ? t(lang, "pf.saveChanges") : t(lang, "pf.saveContinue")}</SubmitButton></div>
   </form>;
 }
 
-export function AccountForm({ profile }: { profile: Profile }) {
+export function AccountForm({ profile, lang = "en" }: { profile: Profile; lang?: AppLang }) {
   const [state, action] = useActionState(updateAccount, idleState);
   const e = state.fieldErrors ?? {};
   return <form action={action} className="grid gap-4 sm:grid-cols-3">
-    <Field label="Your name" htmlFor="afullName" error={e.fullName}><Input id="afullName" name="fullName" defaultValue={profile.full_name} required /></Field>
-    <Field label="Company" htmlFor="acompany" error={e.company}><Input id="acompany" name="company" defaultValue={profile.company ?? ""} /></Field>
-    <Field label="Mobile number" htmlFor="aphone" error={e.phone}><Input id="aphone" name="phone" type="tel" defaultValue={displayPhone(profile.phone)} required /></Field>
-    <div className="space-y-2 sm:col-span-3"><FormMessage state={state} /><SubmitButton variant="outline" pendingLabel="Saving…">Save</SubmitButton></div>
+    <Field label={t(lang, "auth.name")} htmlFor="afullName" error={e.fullName}><Input id="afullName" name="fullName" defaultValue={profile.full_name} required /></Field>
+    <Field label={t(lang, "pf.company")} htmlFor="acompany" error={e.company}><Input id="acompany" name="company" defaultValue={profile.company ?? ""} /></Field>
+    <Field label={t(lang, "auth.mobile")} htmlFor="aphone" error={e.phone}><Input id="aphone" name="phone" type="tel" defaultValue={displayPhone(profile.phone)} required /></Field>
+    <div className="space-y-2 sm:col-span-3"><FormMessage state={state} /><SubmitButton variant="outline" pendingLabel={t(lang, "pf.saving")}>{t(lang, "pf.save")}</SubmitButton></div>
   </form>;
 }

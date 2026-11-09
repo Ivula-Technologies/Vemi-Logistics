@@ -6,7 +6,7 @@ import { publicUrl } from "@/lib/site-url";
 const protectedPrefixes = ["/home", "/loads", "/board", "/trips", "/fleet", "/profile", "/earnings", "/admin", "/wallet", "/business", "/reports", "/welcome"];
 
 // Pages that work without the database, so the site still opens before Supabase is connected.
-const pagesWithoutDatabase = ["/", "/help", "/privacy", "/terms", "/manifest.webmanifest", "/robots.txt", "/api/health"];
+const pagesWithoutDatabase = ["/", "/help", "/privacy", "/terms", "/delete-account", "/manifest.webmanifest", "/robots.txt", "/api/health"];
 
 // Shown instead of a crash while the Supabase keys are not set on the server yet.
 function notReadyPage() {
