@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Bell, BellOff, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { t, type AppLang } from "@/lib/i18n";
 
 function keyBytes(base64: string) {
   const padded = (base64 + "=".repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/");
@@ -9,7 +10,7 @@ function keyBytes(base64: string) {
 }
 
 /** Turns on push notifications for this phone (bids, bookings, payments, trip updates and chat). */
-export function PushToggle({ publicKey }: { publicKey: string | null }) {
+export function PushToggle({ publicKey, lang = "en" }: { publicKey: string | null; lang?: AppLang }) {
   const [state, setState] = useState<"loading" | "unsupported" | "off" | "on" | "denied">("loading");
   const [busy, setBusy] = useState(false);
 
@@ -55,11 +56,11 @@ export function PushToggle({ publicKey }: { publicKey: string | null }) {
   }
 
   if (state === "loading") return null;
-  if (state === "unsupported") return <p className="text-sm text-muted-foreground">{publicKey ? "This browser can't show notifications. Install the Vemi app from Chrome to get them." : "Notifications are being switched on. You get email and SMS until then."}</p>;
-  if (state === "denied") return <p className="text-sm text-muted-foreground">Notifications are blocked for Vemi. Allow them in your browser&apos;s site settings, then come back here.</p>;
+  if (state === "unsupported") return <p className="text-sm text-muted-foreground">{t(lang, publicKey ? "push.unsupported" : "push.notReady")}</p>;
+  if (state === "denied") return <p className="text-sm text-muted-foreground">{t(lang, "push.denied")}</p>;
   return <div className="flex flex-wrap items-center gap-3">
-    {state === "on" ? <Button type="button" variant="outline" onClick={turnOff} disabled={busy}>{busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <BellOff className="mr-2 h-4 w-4" />}Turn off on this phone</Button>
-      : <Button type="button" onClick={turnOn} disabled={busy}>{busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Bell className="mr-2 h-4 w-4" />}Turn on notifications</Button>}
-    <p className="text-sm text-muted-foreground">{state === "on" ? "On for this phone. Chat messages come only as notifications, not email." : "Get bids, bookings, payments and trip updates instantly."}</p>
+    {state === "on" ? <Button type="button" variant="outline" onClick={turnOff} disabled={busy}>{busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <BellOff className="mr-2 h-4 w-4" />}{t(lang, "push.turnOff")}</Button>
+      : <Button type="button" onClick={turnOn} disabled={busy}>{busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Bell className="mr-2 h-4 w-4" />}{t(lang, "push.turnOn")}</Button>}
+    <p className="text-sm text-muted-foreground">{t(lang, state === "on" ? "push.onText" : "push.offText")}</p>
   </div>;
 }
