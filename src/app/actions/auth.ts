@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { accountSchema, kenyanPhone, signInSchema, signUpSchema } from "@/lib/validations";
 import { checkLoginCode, phoneLoginConfigured, sendLoginCode } from "@/lib/phone-login";
 import { safeNextPath } from "@/lib/utils";
+import { PORTAL, portalForRole } from "@/lib/portal";
 import { fieldErrors } from "@/lib/forms";
 import type { ActionState } from "@/lib/types";
 
@@ -60,8 +61,11 @@ export async function sendMagicLink(_: ActionState, formData: FormData): Promise
 
 export async function signOut() {
   const supabase = await createClient();
+  // Truck owners go back to the partner portal's sign-in, everyone else to the customer one.
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = user ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle() : { data: null };
   await supabase.auth.signOut();
-  redirect("/login");
+  redirect(PORTAL[portalForRole(profile?.role)].login);
 }
 
 export async function updateAccount(_: ActionState, formData: FormData): Promise<ActionState> {

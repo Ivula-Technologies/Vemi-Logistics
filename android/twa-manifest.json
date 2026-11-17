@@ -25,14 +25,31 @@
   "appVersionCode": 1,
   "appVersion": "0.1.0",
   "shortcuts": [
-    { "name": "Post a load", "shortName": "Post a load", "url": "https://vemi-logistics.vercel.app/loads/new", "chosenIconUrl": "https://vemi-logistics.vercel.app/icons/icon-192.png" },
-    { "name": "Find loads", "shortName": "Find loads", "url": "https://vemi-logistics.vercel.app/board", "chosenIconUrl": "https://vemi-logistics.vercel.app/icons/icon-192.png" },
-    { "name": "My trips", "shortName": "My trips", "url": "https://vemi-logistics.vercel.app/trips", "chosenIconUrl": "https://vemi-logistics.vercel.app/icons/icon-192.png" }
+    {
+      "name": "Post a load",
+      "shortName": "Post a load",
+      "url": "https://vemi-logistics.vercel.app/loads/new",
+      "chosenIconUrl": "https://vemi-logistics.vercel.app/icons/icon-192.png"
+    },
+    {
+      "name": "My loads",
+      "shortName": "My loads",
+      "url": "https://vemi-logistics.vercel.app/loads",
+      "chosenIconUrl": "https://vemi-logistics.vercel.app/icons/icon-192.png"
+    },
+    {
+      "name": "My trips",
+      "shortName": "My trips",
+      "url": "https://vemi-logistics.vercel.app/trips",
+      "chosenIconUrl": "https://vemi-logistics.vercel.app/icons/icon-192.png"
+    }
   ],
   "generatorApp": "bubblewrap-cli",
   "fallbackType": "webview",
   "features": {},
-  "alphaDependencies": { "enabled": false },
+  "alphaDependencies": {
+    "enabled": false
+  },
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,

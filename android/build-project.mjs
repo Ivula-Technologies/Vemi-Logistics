@@ -4,6 +4,8 @@
 // so the build never depends on what is live on the website.
 //
 // Usage: node android/build-project.mjs  (CI then runs ./gradlew bundleRelease in android/build/project)
+// Two apps come from this folder: the customer app (twa-manifest.json, the default) and the partner app for
+// truck owners (TWA_MANIFEST=twa-manifest.partner.json).
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -11,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { ConsoleLog, TwaGenerator, TwaManifest, fetchUtils } from "@bubblewrap/core";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const config = JSON.parse(fs.readFileSync(path.join(here, "twa-manifest.json"), "utf8"));
+const config = JSON.parse(fs.readFileSync(path.join(here, process.env.TWA_MANIFEST || "twa-manifest.json"), "utf8"));
 const publicDir = path.resolve(here, config.publicDir ?? "../public");
 const outDir = path.join(here, "build", "project");
 

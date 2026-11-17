@@ -15,14 +15,15 @@ const ROLES = [
   { value: "carrier", title: "auth.role.carrier", text: "auth.role.carrierText", icon: Truck },
 ] as const;
 
-export function SignupForm({ defaultRole, referral, next, lang = "en" }: { defaultRole: "shipper" | "carrier"; referral?: string; next?: string; lang?: AppLang }) {
+/** fixedRole: each portal signs up one kind of account (customer portal: shipper, partner portal: carrier), so no picker. */
+export function SignupForm({ defaultRole = "shipper", fixedRole, referral, next, lang = "en" }: { defaultRole?: "shipper" | "carrier"; fixedRole?: "shipper" | "carrier"; referral?: string; next?: string; lang?: AppLang }) {
   const [beforeTerms, betweenLinks, afterPrivacy] = t(lang, "auth.agree", { terms: "@@", privacy: "@@" }).split("@@");
   const [state, action] = useActionState(signUp, idleState);
-  const [role, setRole] = useState<"shipper" | "carrier">(defaultRole);
+  const [role, setRole] = useState<"shipper" | "carrier">(fixedRole ?? defaultRole);
   if (state.status === "success") return <div className="mt-6 rounded-lg border bg-card p-6"><p className="font-semibold">{t(lang, "auth.almost")}</p><p className="mt-1 text-sm text-muted-foreground">{state.message}</p></div>;
   return <form action={action} className="mt-6 space-y-4">
     <input type="hidden" name="next" value={next ?? ""} />
-    <fieldset className="grid grid-cols-2 gap-3">
+    {fixedRole ? <input type="hidden" name="role" value={fixedRole} /> : <fieldset className="grid grid-cols-2 gap-3">
       <legend className="sr-only">{t(lang, "auth.accountType")}</legend>
       {ROLES.map(({ value, title, text, icon: Icon }) => <label key={value} className={cn("cursor-pointer rounded-lg border p-3 transition-colors", role === value ? "border-primary bg-signal-soft ring-1 ring-primary" : "hover:bg-secondary")}>
         <input type="radio" name="role" value={value} checked={role === value} onChange={() => setRole(value)} className="sr-only" />
@@ -30,7 +31,7 @@ export function SignupForm({ defaultRole, referral, next, lang = "en" }: { defau
         <span className="mt-2 block text-sm font-semibold">{t(lang, title)}</span>
         <span className="block text-xs text-muted-foreground">{t(lang, text)}</span>
       </label>)}
-    </fieldset>
+    </fieldset>}
     <Field label={t(lang, "auth.name")} htmlFor="fullName" error={state.fieldErrors?.fullName}><Input id="fullName" name="fullName" autoComplete="name" required /></Field>
     <Field label={t(lang, role === "carrier" ? "auth.businessName" : "auth.company")} htmlFor="company" error={state.fieldErrors?.company}><Input id="company" name="company" autoComplete="organization" /></Field>
     <Field label={t(lang, "auth.mobile")} htmlFor="phone" hint={t(lang, "auth.phoneHint")} error={state.fieldErrors?.phone}><Input id="phone" name="phone" type="tel" inputMode="tel" placeholder="0712 345 678" autoComplete="tel" required /></Field>

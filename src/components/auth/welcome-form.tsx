@@ -15,9 +15,9 @@ const ROLES = [
 ] as const;
 
 /** One step after Google sign-in: what you do, and a mobile number for trip texts. */
-export function WelcomeForm({ referral, lang = "en" }: { referral?: string; lang?: AppLang }) {
+export function WelcomeForm({ referral, defaultRole = "shipper", lang = "en" }: { referral?: string; defaultRole?: "shipper" | "carrier"; lang?: AppLang }) {
   const [state, action] = useActionState(chooseRole, idleState);
-  const [role, setRole] = useState<"shipper" | "carrier">("shipper");
+  const [role, setRole] = useState<"shipper" | "carrier">(defaultRole);
   return <form action={action} className="mt-6 space-y-4">
     <fieldset className="grid grid-cols-2 gap-3">
       <legend className="sr-only">{t(lang, "auth.accountType")}</legend>

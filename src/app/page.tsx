@@ -22,7 +22,7 @@ export default async function Landing() {
   return <div className="min-h-screen">
     <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
       <Brand />
-      <nav className="flex items-center gap-2"><Button asChild variant="ghost"><Link href="/login">Sign in</Link></Button><Button asChild><Link href="/signup">Get started</Link></Button></nav>
+      <nav className="flex items-center gap-1 sm:gap-2"><Link href="/partners" className="hidden px-2 text-sm font-semibold text-muted-foreground hover:text-foreground md:inline">For truck owners</Link><Button asChild variant="ghost"><Link href="/login">Sign in</Link></Button><Button asChild><Link href="/signup">Get started</Link></Button></nav>
     </header>
 
     <section className="mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-8 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:pt-16">
@@ -31,10 +31,10 @@ export default async function Landing() {
         <h1 className="mt-5 text-4xl font-extrabold leading-[1.05] sm:text-5xl lg:text-6xl">Book a verified truck <span className="road-stripe pb-1">in minutes</span>, not days.</h1>
         <p className="mt-5 max-w-xl text-lg text-muted-foreground">Vemi matches shippers with vetted truck owners across East Africa. Post a load, compare bids, pay by M-Pesa, and follow your goods on the map from pickup to delivery.</p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <Button asChild size="lg"><Link href="/signup?role=shipper">I need a truck<ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
-          <Button asChild size="lg" variant="outline"><Link href="/signup?role=carrier"><Truck className="mr-2 h-4 w-4" />I own trucks</Link></Button>
+          <Button asChild size="lg"><Link href="/signup">I need a truck<ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+          <Button asChild size="lg" variant="outline"><Link href="/partners"><Truck className="mr-2 h-4 w-4" />I own trucks</Link></Button>
         </div>
-        <p className="mt-4 text-sm text-muted-foreground">Free to join. Truck owners keep 90% of every trip (founding carriers keep 95%).</p>
+        <p className="mt-4 text-sm text-muted-foreground">Free for businesses. Truck owners and logistics companies join through <Link href="/partners" className="font-semibold text-primary underline-offset-4 hover:underline">Vemi Partner</Link>.</p>
       </div>
       {places.length ? <PriceCalculator places={places} /> : null}
     </section>
@@ -58,6 +58,7 @@ export default async function Landing() {
             <Point icon={<Smartphone />} title="Drivers need no app">Send a trip link by WhatsApp. They tap each step and snap the delivery note.</Point>
             <Point icon={<BadgeCheck />} title="Ratings that win work">Good trips build your rating, and shippers book well-rated trucks first.</Point>
           </ul>
+          <Button asChild variant="outline" className="mt-6"><Link href="/partners">Go to Vemi Partner<ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
         </div>
       </div>
     </section>
@@ -82,7 +83,7 @@ export default async function Landing() {
 
     <footer className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <p>© {new Date().getFullYear()} Vemi Logistics, by Ivula Technologies. Nairobi, Kenya.</p>
-      <nav className="flex gap-4"><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><a href="mailto:hello@ivulatechnologies.com">Contact</a></nav>
+      <nav className="flex gap-4"><Link href="/partners">Vemi Partner</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><a href="mailto:hello@ivulatechnologies.com">Contact</a></nav>
     </footer>
   </div>;
 }
