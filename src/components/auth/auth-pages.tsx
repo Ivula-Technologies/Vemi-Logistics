@@ -34,7 +34,7 @@ export function SignupPanel({ portal, lang, referral, next }: { portal: Portal; 
   return <div>
     <h1 className="text-2xl font-bold">{t(lang, partner ? "auth.partnerJoin" : "auth.join")}</h1>
     <p className="mt-1 text-sm text-muted-foreground">{t(lang, partner ? "auth.partnerJoinIntro" : "auth.customerJoinIntro")}</p>
-    {process.env.NEXT_PUBLIC_GOOGLE_SIGNIN === "on" ? <GoogleButton next={partner ? "/welcome?role=carrier" : "/welcome"} referral={referral} label={t(lang, "auth.googleSignup")} lang={lang} /> : null}
+    {process.env.NEXT_PUBLIC_GOOGLE_SIGNIN === "on" ? <GoogleButton next="/welcome" referral={referral} label={t(lang, "auth.googleSignup")} lang={lang} /> : null}
     <SignupForm fixedRole={partner ? "carrier" : "shipper"} referral={referral} next={next?.startsWith("/join/") ? next : undefined} lang={lang} />
     <p className="mt-6 text-center text-sm text-muted-foreground">{t(lang, "auth.already")} <Link href={PORTAL[portal].login} className={link}>{t(lang, "auth.signIn")}</Link></p>
     <OtherPortal portal={portal} lang={lang} />

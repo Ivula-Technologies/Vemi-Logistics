@@ -15,11 +15,12 @@ const ROLES = [
 ] as const;
 
 /** One step after Google sign-in: what you do, and a mobile number for trip texts. */
-export function WelcomeForm({ referral, defaultRole = "shipper", lang = "en" }: { referral?: string; defaultRole?: "shipper" | "carrier"; lang?: AppLang }) {
+/** fixedRole comes from the portal the person signed up through, so there is no picker. */
+export function WelcomeForm({ referral, fixedRole, lang = "en" }: { referral?: string; fixedRole?: "shipper" | "carrier"; lang?: AppLang }) {
   const [state, action] = useActionState(chooseRole, idleState);
-  const [role, setRole] = useState<"shipper" | "carrier">(defaultRole);
+  const [role, setRole] = useState<"shipper" | "carrier">(fixedRole ?? "shipper");
   return <form action={action} className="mt-6 space-y-4">
-    <fieldset className="grid grid-cols-2 gap-3">
+    {fixedRole ? <input type="hidden" name="role" value={fixedRole} /> : <fieldset className="grid grid-cols-2 gap-3">
       <legend className="sr-only">{t(lang, "auth.accountType")}</legend>
       {ROLES.map(({ value, title, text, icon: Icon }) => <label key={value} className={cn("cursor-pointer rounded-lg border p-3 transition-colors", role === value ? "border-primary bg-signal-soft ring-1 ring-primary" : "hover:bg-secondary")}>
         <input type="radio" name="role" value={value} checked={role === value} onChange={() => setRole(value)} className="sr-only" />
@@ -27,7 +28,7 @@ export function WelcomeForm({ referral, defaultRole = "shipper", lang = "en" }: 
         <span className="mt-2 block text-sm font-semibold">{t(lang, title)}</span>
         <span className="block text-xs text-muted-foreground">{t(lang, text)}</span>
       </label>)}
-    </fieldset>
+    </fieldset>}
     <Field label={t(lang, role === "carrier" ? "auth.businessName" : "auth.company")} htmlFor="company"><Input id="company" name="company" autoComplete="organization" /></Field>
     <Field label={t(lang, "auth.mobile")} htmlFor="phone" hint={t(lang, "auth.phoneHint")} error={state.fieldErrors?.phone}><Input id="phone" name="phone" type="tel" inputMode="tel" placeholder="0712 345 678" autoComplete="tel" required /></Field>
     <Field label={t(lang, "auth.referral")} htmlFor="ref"><Input id="ref" name="ref" defaultValue={referral ?? ""} maxLength={7} className="uppercase" /></Field>

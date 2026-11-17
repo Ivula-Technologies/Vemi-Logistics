@@ -14,6 +14,6 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
   return <div>
     <h1 className="text-2xl font-bold">{first ? t(lang, "auth.karibu", { name: first }) : t(lang, "auth.karibuNoName")}</h1>
     <p className="mt-1 text-sm text-muted-foreground">{t(lang, "auth.oneStep")}</p>
-    <WelcomeForm defaultRole={role === "carrier" ? "carrier" : "shipper"} referral={ref?.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 7)} lang={lang} />
+    <WelcomeForm fixedRole={role === "carrier" || role === "shipper" ? role : undefined} referral={ref?.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 7)} lang={lang} />
   </div>;
 }
