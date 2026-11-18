@@ -11,6 +11,14 @@ import { safeNextPath } from "@/lib/utils";
 import { PORTAL, portalForRole } from "@/lib/portal";
 import { fieldErrors } from "@/lib/forms";
 import type { ActionState } from "@/lib/types";
+import { clientIp, rateLimit } from "@/lib/ops";
+
+const SLOW_DOWN: ActionState = { status: "error", message: "Too many tries. Wait a few minutes and try again." };
+
+/** Counts a try per visitor IP; false once the limit is reached. */
+async function allowed(action: string, limit: number, windowSeconds: number) {
+  return rateLimit(`${action}:${clientIp(await headers())}`, limit, windowSeconds);
+}
 
 async function origin() {
   return (await headers()).get("origin") ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -19,6 +27,7 @@ async function origin() {
 export async function signIn(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = signInSchema.safeParse({ email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { status: "error", message: "Check the highlighted details.", fieldErrors: fieldErrors(parsed.error) };
+  if (!(await allowed("sign-in", 20, 600))) return SLOW_DOWN;
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) return { status: "error", message: error.message === "Invalid login credentials" ? "That email and password do not match." : error.message };
@@ -34,6 +43,7 @@ export async function signUp(_: ActionState, formData: FormData): Promise<Action
     email: formData.get("email"), password: formData.get("password"), terms: formData.get("terms"),
   });
   if (!parsed.success) return { status: "error", message: "Check the highlighted details.", fieldErrors: fieldErrors(parsed.error) };
+  if (!(await allowed("sign-up", 10, 3600))) return SLOW_DOWN;
   const requested = formData.get("next");
   const next = typeof requested === "string" && requested ? safeNextPath(requested) : parsed.data.role === "carrier" ? "/profile?welcome=1" : "/loads/new?welcome=1";
   const supabase = await createClient();
@@ -53,6 +63,7 @@ export async function signUp(_: ActionState, formData: FormData): Promise<Action
 export async function sendMagicLink(_: ActionState, formData: FormData): Promise<ActionState> {
   const email = String(formData.get("email") ?? "").trim();
   if (!/^\S+@\S+\.\S+$/.test(email)) return { status: "error", message: "Enter your email address first." };
+  if (!(await allowed("magic-link", 5, 900))) return SLOW_DOWN;
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${await origin()}/auth/callback?next=/home` } });
   if (error) return { status: "error", message: error.message };
@@ -87,6 +98,7 @@ export async function sendPhoneCode(_: ActionState, formData: FormData): Promise
   if (!phoneLoginConfigured()) return { status: "error", message: "Phone sign-in isn't switched on yet. Use your email." };
   const phone = kenyanPhone.safeParse(String(formData.get("phone") ?? ""));
   if (!phone.success) return { status: "error", message: "Enter your mobile number like 0712 345 678." };
+  if (!(await allowed("phone-code", 10, 900))) return SLOW_DOWN;
   try {
     await sendLoginCode(phone.data);
   } catch (error) {

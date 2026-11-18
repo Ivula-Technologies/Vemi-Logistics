@@ -4,6 +4,7 @@ import { normalizeKenyanPhone } from "@/lib/phone";
 import { publicOrigin } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { reportError } from "@/lib/ops";
 
 const MAX_TIP = 50_000;
 
@@ -52,13 +53,13 @@ export async function POST(request: Request) {
   try {
     prompt = await stkPush({ phone, amount, callbackUrl, reference: trip.ref.replace(/[^A-Z0-9]/gi, ""), description: purpose === "tip" ? "Vemi tip" : "Vemi freight" });
   } catch (error) {
-    console.error("M-Pesa STK push failed", error);
+    await reportError("mpesa-stk-push", error, { tripId: trip.id });
     return NextResponse.json({ error: error instanceof Error ? error.message : "M-Pesa could not send the payment prompt." }, { status: 502 });
   }
   const { data: payment, error } = await admin.from("payments").insert({
     trip_id: trip.id, shipper_id: owner!.shipper_id, method: "mpesa", amount, phone, purpose, recorded_by: user.id,
     checkout_request_id: prompt.checkoutRequestId, merchant_request_id: prompt.merchantRequestId,
   }).select("id").single();
-  if (error) { console.error("Could not record M-Pesa payment", error); return NextResponse.json({ error: "Could not record the payment. Please try again." }, { status: 500 }); }
+  if (error) { await reportError("mpesa-stk-record", error, { tripId: trip.id, checkoutRequestId: prompt.checkoutRequestId }); return NextResponse.json({ error: "Could not record the payment. Please try again." }, { status: 500 }); }
   return NextResponse.json({ paymentId: payment.id, amount, message: prompt.customerMessage });
 }

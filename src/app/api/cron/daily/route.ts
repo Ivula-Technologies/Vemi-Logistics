@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cronAuthorized } from "@/lib/cron";
-import { notifyUser, sendSms } from "@/lib/notify";
+import { notifyUser, sendEmail, sendSms } from "@/lib/notify";
 import { driverText } from "@/lib/driver-i18n";
 import { DOCUMENT_KINDS } from "@/lib/trips";
 import { formatDate, formatKes } from "@/lib/utils";
+import { errorDigest, markRan, reportError } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
   if (!cronAuthorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const admin = createAdminClient();
   const { data, error } = await admin.rpc("run_daily_jobs");
-  if (error) { console.error("Daily jobs failed", error); return NextResponse.json({ error: error.message }, { status: 500 }); }
+  if (error) { await reportError("cron-daily", error); return NextResponse.json({ error: error.message }, { status: 500 }); }
   const jobs = data as Jobs;
   const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
 
@@ -48,5 +49,19 @@ export async function GET(request: Request) {
     notifyUser(trip.carrier_id, `Border papers missing: ${trip.ref}`, `The customs entry for ${trip.ref} is not on the trip yet. Check with the shipper before the truck leaves.`, `/trips/${trip.id}#papers`, { key: `papers-c-${trip.id}` }),
   ]));
 
-  return NextResponse.json({ papers_reminders: due.length, auto_confirmed: jobs.auto_confirmed, expired_loads: jobs.expired_loads, pickup_reminders: jobs.pickup_reminders.length, expiring_documents: jobs.expiring_documents.length, overdue_invoices: jobs.overdue_invoices.length });
+  // The day's server errors, grouped, to the ops inbox. Nothing is sent on a clean day.
+  let errors = 0;
+  try {
+    const digest = await errorDigest();
+    if (digest && process.env.VEMI_OPS_EMAIL) {
+      errors = digest.total;
+      const day = new Date().toISOString().slice(0, 10);
+      await sendEmail(process.env.VEMI_OPS_EMAIL, `Vemi: ${digest.total} server error${digest.total === 1 ? "" : "s"} in the last day`, digest.text, "/admin", `error-digest-${day}`);
+    }
+  } catch (digestError) {
+    await reportError("cron-daily-digest", digestError);
+  }
+  await markRan("cron_daily", { pickup_reminders: jobs.pickup_reminders.length, errors });
+
+  return NextResponse.json({ errors, papers_reminders: due.length, auto_confirmed: jobs.auto_confirmed, expired_loads: jobs.expired_loads, pickup_reminders: jobs.pickup_reminders.length, expiring_documents: jobs.expiring_documents.length, overdue_invoices: jobs.overdue_invoices.length });
 }

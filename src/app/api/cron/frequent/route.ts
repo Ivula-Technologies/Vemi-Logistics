@@ -4,6 +4,7 @@ import { cronAuthorized } from "@/lib/cron";
 import { notifyOps, notifyUser } from "@/lib/notify";
 import { announceLoad } from "@/lib/load-alerts";
 import { ALERTS } from "@/lib/trips";
+import { markRan, reportError } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +17,13 @@ type Watch = { alerts: { trip_id: string; ref: string; alert: keyof typeof ALERT
 export async function GET(request: Request) {
   if (!cronAuthorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { data, error } = await createAdminClient().rpc("run_watch_jobs");
-  if (error) { console.error("Watch jobs failed", error); return NextResponse.json({ error: error.message }, { status: 500 }); }
+  if (error) { await reportError("cron-frequent", error); return NextResponse.json({ error: error.message }, { status: 500 }); }
   const watch = data as Watch;
   await Promise.all(watch.alerts.map(async (a) => {
     await notifyOps(`Truck watch: ${a.ref}`, `${ALERTS[a.alert]}. Call the driver and the carrier.`, `/trips/${a.trip_id}`, { urgent: a.alert === "no_signal" });
     await notifyUser(a.carrier_id, `Check on ${a.ref}`, `${ALERTS[a.alert]}. Is everything OK? Ask your driver to keep the trip page open, or tell Vemi on the trip chat.`, `/trips/${a.trip_id}`, { sms: true, key: `watch-${a.trip_id}-${a.alert}` });
   }));
   for (const loadId of watch.announce) await announceLoad(loadId);
+  await markRan("cron_frequent", { alerts: watch.alerts.length });
   return NextResponse.json({ alerts: watch.alerts.length, announced: watch.announce.length });
 }

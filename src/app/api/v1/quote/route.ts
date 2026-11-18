@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPlaces } from "@/lib/places";
 import { isTruckType, quote, TRUCK_TYPES } from "@/lib/pricing";
 import { travelHours } from "@/lib/eta";
+import { clientIp, rateLimit } from "@/lib/ops";
 
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Cache-Control": "public, max-age=300" };
 
@@ -10,6 +11,7 @@ const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods
  * Returns the guide price (before busy-lane surcharges), distance, borders and a rough transit time.
  */
 export async function GET(request: Request) {
+  if (!(await rateLimit(`v1-quote:${clientIp(request.headers)}`, 120, 600))) return NextResponse.json({ error: "Too many requests. Try again in a few minutes." }, { status: 429, headers: CORS });
   const params = new URL(request.url).searchParams;
   const from = params.get("from") ?? "";
   const to = params.get("to") ?? "";

@@ -1,10 +1,12 @@
 import { after, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOps, notifyUser } from "@/lib/notify";
+import { rateLimit } from "@/lib/ops";
 
 /** The driver's emergency button: ops get an SMS and email with the location, the carrier and shipper are told. */
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  if (!(await rateLimit(`driver-sos:${token}`, 5, 600))) return NextResponse.json({ error: "Too many tries. Wait a few minutes and try again." }, { status: 429 });
   const body = await request.json().catch(() => null) as { note?: string; lat?: number; lng?: number } | null;
   const lat = typeof body?.lat === "number" && Number.isFinite(body.lat) ? body.lat : null;
   const lng = typeof body?.lng === "number" && Number.isFinite(body.lng) ? body.lng : null;
