@@ -3,6 +3,7 @@ import { callbackTokenMatches, type B2cResult } from "@/lib/mpesa";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOps, notifyUser } from "@/lib/notify";
 import { formatKes } from "@/lib/utils";
+import { reportError } from "@/lib/ops";
 
 const ACK = { ResultCode: 0, ResultDesc: "Accepted" };
 
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
   if (!result?.OriginatorConversationID) return NextResponse.json(ACK);
   const ok = String(result.ResultCode) === "0";
   const { data, error } = await createAdminClient().rpc("b2c_result", { p_conversation: result.OriginatorConversationID, p_ok: ok, p_receipt: result.TransactionID ?? null, p_error: ok ? null : result.ResultDesc ?? "Failed" });
-  if (error) { console.error("B2C result not recorded", error); return NextResponse.json({ ResultCode: 1, ResultDesc: "Retry" }, { status: 500 }); }
+  if (error) { await reportError("mpesa-b2c-result", error); return NextResponse.json({ ResultCode: 1, ResultDesc: "Retry" }, { status: 500 }); }
   const row = data as { kind: "payout" | "refund"; carrier_id?: string; account_id?: string; amount: number; ok: boolean } | null;
   if (row) after(async () => {
     if (!row.ok) { await notifyOps("M-Pesa payout failed", `${formatKes(row.amount)}: ${result.ResultDesc}. It is back in the queue.`, row.kind === "refund" ? "/admin/refunds" : "/admin/payouts"); return; }

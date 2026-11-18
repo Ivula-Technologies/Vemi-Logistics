@@ -23,23 +23,29 @@ Play key: Play builds are signed with the Ivula upload key from the Play Store g
 `/.well-known/assetlinks.json` (served by `src/app/.well-known/assetlinks.json/route.ts`) lists the tester key and
 the Ivula upload key, so the app opens without a browser bar.
 
-## The Google Play app
+## The Google Play apps
 
-The same app goes on Google Play, signed with the Ivula upload key (one key for every Ivula app, kept in
-`/mnt/project-files/android/upload-key/`, never committed).
+Vemi has two portals, so it has two Play apps built from this folder, both signed with the Ivula upload key
+(one key for every Ivula app, kept in `/mnt/project-files/android/upload-key/`, never committed):
+
+| App | For | Config | Package | Opens at |
+| --- | --- | --- | --- | --- |
+| **Vemi** | businesses that need goods moved | `twa-manifest.json` | `com.ivulatechnologies.vemi` | `/home` |
+| **Vemi Partner** | truck owners, fleets, logistics companies | `twa-manifest.partner.json` | `com.ivulatechnologies.vemi.partner` | `/partners/login` |
 
 1. Add two repository secrets once (Settings → Secrets and variables → Actions):
    - `ANDROID_UPLOAD_KEYSTORE`: the contents of `ivula-upload.jks.base64.txt`
    - `ANDROID_UPLOAD_KEYSTORE_PASSWORD`: the contents of `password.txt`
-2. Actions → **Build Android App** → Run workflow on `main`.
-3. Download the `android-app` artifact and upload the `.aab` in Play Console.
+2. Actions → **Build Android App** → Run workflow on `main`. It builds both apps.
+3. Download the `android-app` artifact (Vemi) and the `android-app-partner` artifact (Vemi Partner), and upload
+   each `.aab` to its own app in Play Console.
 
 The version code is the workflow run number, so every run can be uploaded. Pull requests that touch this folder
-build an unsigned bundle to catch breakage.
+build both unsigned bundles to catch breakage. To build one locally: `TWA_MANIFEST=twa-manifest.partner.json node build-project.mjs`.
 
-After the first Play upload, copy the **App signing key certificate SHA-256** from Play Console (Test and release →
-App integrity) into the `ANDROID_SHA256_FINGERPRINTS` environment variable on Vercel (comma-separate several), then
-redeploy. No new app build is needed.
+After the first Play upload of each app, copy its **App signing key certificate SHA-256** from Play Console (Test and
+release → App integrity) into the `ANDROID_SHA256_FINGERPRINTS` environment variable on Vercel (comma-separate the
+two), then redeploy. `/.well-known/assetlinks.json` lists every key for both packages. No new app build is needed.
 
 Payments: Vemi sells a real-world service (moving goods), which Google Play allows people to pay for outside Play
 billing, so nothing is hidden inside the app.

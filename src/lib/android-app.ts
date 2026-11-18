@@ -4,6 +4,8 @@
 // Play allows paying for trips outside Play billing: nothing is hidden inside the app.
 
 export const ANDROID_PACKAGE = "com.ivulatechnologies.vemi";
+/** Vemi Partner, the app for truck owners (android/twa-manifest.partner.json). */
+export const ANDROID_PARTNER_PACKAGE = "com.ivulatechnologies.vemi.partner";
 
 /** Tester key (android/tester-key, sideloaded APK) and the Ivula upload key (Google Play uploads). */
 export const BUILT_IN_FINGERPRINTS = [
@@ -20,8 +22,8 @@ export function assetLinks(extra = process.env.ANDROID_SHA256_FINGERPRINTS ?? ""
   const fingerprints = [...BUILT_IN_FINGERPRINTS, ...extra.split(",")]
     .map((f) => f.trim().toUpperCase())
     .filter((f, i, all) => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(f) && all.indexOf(f) === i);
-  return [{
+  return [ANDROID_PACKAGE, ANDROID_PARTNER_PACKAGE].map((packageName) => ({
     relation: ["delegate_permission/common.handle_all_urls"],
-    target: { namespace: "android_app", package_name: ANDROID_PACKAGE, sha256_cert_fingerprints: fingerprints },
-  }];
+    target: { namespace: "android_app", package_name: packageName, sha256_cert_fingerprints: fingerprints },
+  }));
 }

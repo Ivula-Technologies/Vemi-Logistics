@@ -79,7 +79,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
     {profile.referral_code && profile.role !== "admin" ? <section id="refer" className="scroll-mt-20 rounded-lg border bg-card p-5">
       <h2 className="mb-1 font-semibold">{t(lang, "prof.invite")}</h2>
       <p className="mb-3 text-sm text-muted-foreground">{settings && isCarrier ? t(lang, "prof.inviteText", { credit: formatKes(settings.referee_credit_kes), reward: formatKes(settings.referral_reward_kes) }) : settings ? `Share your code. A business that signs up with it gets ${formatKes(settings.referee_credit_kes)} off its first trip, and you get ${formatKes(settings.referral_reward_kes)} ${isCarrier ? "with your next payout" : "in your Vemi wallet"} once their first trip is done. Truck owners can join with it too.` : "Share your code with businesses that move goods."}</p>
-      <ShareReferral code={profile.referral_code} url={`${(process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "")}/signup?ref=${profile.referral_code}`} carrier={isCarrier} lang={lang} />
+      <ShareReferral code={profile.referral_code} url={`${(process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "")}${isCarrier ? "/partners/signup" : "/signup"}?ref=${profile.referral_code}`} carrier={isCarrier} lang={lang} />
     </section> : null}
     <InstallAppButton label={t(lang, "share.install")} />
     <p className="text-center text-xs"><a href="/delete-account" className="text-muted-foreground underline-offset-4 hover:underline">{t(lang, "prof.deleteAccount")}</a></p>

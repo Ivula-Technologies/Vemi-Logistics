@@ -1,10 +1,12 @@
 import { after, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tellAboutMessage } from "@/lib/trip-notify";
+import { rateLimit } from "@/lib/ops";
 
 /** Trip chat from the driver's link. */
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  if (!(await rateLimit(`driver-message:${token}`, 30, 600))) return NextResponse.json({ error: "Too many tries. Wait a few minutes and try again." }, { status: 429 });
   const body = await request.json().catch(() => null) as { body?: string } | null;
   const text = (body?.body ?? "").trim();
   if (!text) return NextResponse.json({ error: "Write a message." }, { status: 400 });

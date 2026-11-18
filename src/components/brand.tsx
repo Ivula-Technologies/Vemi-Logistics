@@ -9,9 +9,10 @@ export function VemiMark({ className }: { className?: string }) {
   </svg>;
 }
 
-export function Brand({ href = "/", className }: { href?: string; className?: string }) {
-  return <Link href={href} className={cn("inline-flex items-center gap-2.5", className)} aria-label="Vemi Logistics home">
+/** The wordmark. label is the portal under "vemi": Logistics for customers, Partner for truck owners. */
+export function Brand({ href = "/", className, label = "Logistics" }: { href?: string; className?: string; label?: string }) {
+  return <Link href={href} className={cn("inline-flex items-center gap-2.5", className)} aria-label={`Vemi ${label} home`}>
     <VemiMark />
-    <span className="leading-none"><span className="block text-lg font-extrabold tracking-tight">vemi</span><span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Logistics</span></span>
+    <span className="leading-none"><span className="block text-lg font-extrabold tracking-tight">vemi</span><span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">{label}</span></span>
   </Link>;
 }

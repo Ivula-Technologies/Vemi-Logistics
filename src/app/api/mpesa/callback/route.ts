@@ -4,6 +4,7 @@ import { callbackItem, type StkCallback } from "@/lib/mpesa";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notify";
 import { sendReceipt } from "@/lib/trip-notify";
+import { reportError } from "@/lib/ops";
 
 /** Safaricom retries a callback that does not get this exact acknowledgement. */
 const ACK = { ResultCode: 0, ResultDesc: "Accepted" };
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     }
     const paid = Number(callbackItem(callback, "Amount"));
     if (!(paid >= payment.amount)) {
-      console.error("M-Pesa callback amount below the expected amount", callback.CheckoutRequestID, paid, payment.amount);
+      await reportError("mpesa-callback", "Paid less than the amount asked", { checkoutRequestId: callback.CheckoutRequestID, paid, expected: payment.amount });
       await admin.rpc("fail_mpesa_payment", { p_checkout_request_id: callback.CheckoutRequestID, p_description: `Paid ${paid}, expected ${payment.amount}. Vemi will contact you.`, p_raw: body });
       return NextResponse.json(ACK);
     }
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
       after(() => notifyUser(paidTrip.carrier_id, `${paidTrip.ref} is paid`, "The shipper paid by M-Pesa. Dispatch the truck: your driver can start from their trip link.", `/trips/${paidTrip.id}`, { sms: true, key: `paid-${paidTrip.id}` }));
     }
   } catch (error) {
-    console.error("M-Pesa callback processing failed", callback.CheckoutRequestID, error);
+    await reportError("mpesa-callback", error, { checkoutRequestId: callback.CheckoutRequestID });
     return NextResponse.json({ ResultCode: 1, ResultDesc: "Retry" }, { status: 500 });
   }
   return NextResponse.json(ACK);

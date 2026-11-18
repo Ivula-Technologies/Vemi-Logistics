@@ -1,0 +1,100 @@
+name: Weekly backup
+
+# The database (marketplace data and sign-in accounts) and every stored file, encrypted with BACKUP_PASSPHRASE and
+# kept as a workflow artifact for 35 days. Supabase's free plan has no downloadable backups.
+# Does nothing until the four secrets below are set. Setup and restore: docs/SYSTEM-DESIGN.md, "Backups".
+on:
+  schedule:
+    - cron: "30 22 * * 6" # Sunday 01:30 East Africa Time
+  workflow_dispatch:
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check settings
+        id: settings
+        run: |
+          missing=""
+          for name in SUPABASE_DB_URL SUPABASE_URL SUPABASE_SECRET_KEY BACKUP_PASSPHRASE; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              echo "::warning::Backup skipped: add these repository secrets (Settings → Secrets and variables → Actions):$missing"
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::Add these repository secrets (Settings → Secrets and variables → Actions):$missing"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.settings.outputs.skip != 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.settings.outputs.skip != 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+        if: steps.settings.outputs.skip != 'true'
+
+      - name: Install the PostgreSQL 17 client
+        if: steps.settings.outputs.skip != 'true'
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -q && sudo apt-get install -yq postgresql-client-17
+
+      - name: Dump the database
+        if: steps.settings.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          day=$(TZ=Africa/Nairobi date +%F)
+          echo "DAY=$day" >> "$GITHUB_ENV"
+          mkdir -p "backup/$day"
+          # Marketplace data (public) and the app's rules (private): schema, data and grants.
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --format=custom --no-owner \
+            --schema=public --schema=private --file="backup/$day/vemi-app.dump"
+          # Sign-in accounts, data only (the auth schema belongs to Supabase).
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --format=custom --data-only --no-owner --no-privileges \
+            --table=auth.users --table=auth.identities --file="backup/$day/vemi-auth.dump"
+          ls -la "backup/$day"
+
+      - name: Copy stored files
+        if: steps.settings.outputs.skip != 'true'
+        run: node scripts/backup-storage.mjs "backup/$DAY"
+
+      - name: Encrypt
+        if: steps.settings.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          tar -C backup -czf "vemi-backup-$DAY.tar.gz" "$DAY"
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 \
+            --output "vemi-backup-$DAY.tar.gz.gpg" "vemi-backup-$DAY.tar.gz" <<< "$BACKUP_PASSPHRASE"
+          rm -rf backup "vemi-backup-$DAY.tar.gz"
+          ls -la "vemi-backup-$DAY.tar.gz.gpg"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.settings.outputs.skip != 'true'
+        with:
+          name: vemi-backup-${{ env.DAY }}
+          path: vemi-backup-${{ env.DAY }}.tar.gz.gpg
+          if-no-files-found: error
+          retention-days: 35
+          compression-level: 0

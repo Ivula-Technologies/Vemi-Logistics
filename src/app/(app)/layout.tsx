@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { LogOut } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { NavLinks } from "@/components/app/nav";
@@ -7,8 +8,19 @@ import { signOut } from "@/app/actions/auth";
 import { LanguageSwitch } from "@/components/app/language-switch";
 import { getLang } from "@/lib/i18n-server";
 import { t } from "@/lib/i18n";
+import { PORTAL, portalForRole } from "@/lib/portal";
+import { cn } from "@/lib/utils";
 
 const ROLE_LABEL = { shipper: "Shipper", carrier: "Carrier", admin: "Vemi ops" } as const;
+
+// Truck owners install "Vemi Partner"; customers and ops install "Vemi".
+export async function generateMetadata(): Promise<Metadata> {
+  const { profile } = await getSession();
+  const portal = portalForRole(profile.role);
+  return portal === "partner"
+    ? { manifest: PORTAL.partner.manifest, applicationName: "Vemi Partner", appleWebApp: { capable: true, title: "Vemi Partner" }, title: { default: "Vemi Partner", template: "%s · Vemi Partner" } }
+    : {};
+}
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, carrier } = await getSession();
@@ -16,9 +28,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const lang = profile.role === "carrier" ? await getLang() : "en";
   const name = profile.role === "carrier" ? carrier?.business_name ?? profile.full_name : profile.company || profile.full_name;
   const home = profile.role === "admin" ? "/admin" : "/home";
+  // Two portals, two looks: partners (truck owners) get a night-blue header with the Partner wordmark.
+  const partner = portalForRole(profile.role) === "partner";
+  const label = partner ? PORTAL.partner.label : PORTAL.customer.label;
+  const bar = partner ? "border-[#151a24] bg-[#151a24] text-white [&_span]:text-white/80" : "";
   return <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r bg-card lg:flex lg:flex-col">
-      <div className="flex h-16 items-center border-b px-5"><Brand href={home} /></div>
+      <div className={cn("flex h-16 items-center border-b px-5", bar)}><Brand href={home} label={label} /></div>
       <div className="flex-1 p-3"><NavLinks role={profile.role} lang={lang} /></div>
       <div className="border-t p-4 text-sm">
         <p className="truncate font-semibold">{name}</p>
@@ -30,9 +46,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
     </aside>
     <div className="min-w-0 lg:col-start-2">
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/90 px-4 backdrop-blur lg:hidden">
-        <Brand href={home} />
-        <div className="flex items-center gap-1">{profile.role === "carrier" ? <LanguageSwitch lang={lang} compact /> : null}
+      <header className={cn("sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/90 px-4 backdrop-blur lg:hidden", partner && "border-[#151a24] bg-[#151a24]/95 text-white")}>
+        <Brand href={home} label={label} className={partner ? "[&_span]:text-white/80" : undefined} />
+        <div className={cn("flex items-center gap-1", partner && "[&_button]:text-white/80 [&_button:hover]:bg-white/10 [&_button:hover]:text-white")}>{profile.role === "carrier" ? <LanguageSwitch lang={lang} compact /> : null}
         <form action={signOut}><button aria-label={t(lang, "nav.signOut")} className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-secondary"><LogOut className="h-4 w-4" /></button></form></div>
       </header>
       <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10">{children}</main>
